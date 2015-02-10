@@ -12,6 +12,8 @@ from StoneX import *
 # Activate logging
 logger = logging.getLogger(__name__)
 
+logger.info("Version du programme{}".format(StoneX.__version__))
+
 # Creating the VSM
 vsm = VSM()
 logger.info("Etat du VSM : %s", vsm)
@@ -44,7 +46,7 @@ if False:
     scripts.Garcia_Otero_rotation(sample, vsm)
 
 #### Franco-Conde
-if True:
+if False:
     fcsample = load_class(Domain, Franco_Conde)
 
     # Test Franco-Conde
