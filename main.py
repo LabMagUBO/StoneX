@@ -12,13 +12,12 @@ from StoneX import *
 # Activate logging
 logger = logging.getLogger(__name__)
 
-# Define output folder
-define_output('output')
-
 # Creating the VSM
 vsm = VSM()
 logger.info("Etat du VSM : %s", vsm)
 
+# Define output folder for data files
+vsm.set_output('output')
 
 # Setting the VSM parameters
 #vsm.set_angle(0)

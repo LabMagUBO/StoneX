@@ -71,7 +71,12 @@ class VSM(object):
         self.phi = np.radians(phi)
 
     def set_output(self, folder='output'):
+        """
+            Define the output folder for data and pdf files.
+            Need to be called after the VSM.
+        """
         # Defining folders varibles
+        # Need to be
         self.dos_out = folder
         self.dos_cycles = folder + "/cycles"
         self.dos_data = folder + "/dat"
