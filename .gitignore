@@ -1,0 +1,9 @@
+## Ignore the following files
+*.pdf
+*.dat
+*.DS_Store
+*.log
+*.pyc
+
+# compilation file
+__pycache__/
