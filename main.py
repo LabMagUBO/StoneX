@@ -2,17 +2,21 @@
 # -*- coding: utf-8 -*-
 
 """
-    Programme principal
+    Main program
 """
-
 
 # Import module
 from StoneX import *
 
-# Activate logging
-logger = logging.getLogger(__name__)
+# Activate logging (cleaning the log on the first logger)
+logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
 
 logger.info("Version du programme{}".format(StoneX.__version__))
+
+logger.info("info")
+logger.debug("debug")
+logger.error("Error")
+
 
 # Creating the VSM
 vsm = VSM()
