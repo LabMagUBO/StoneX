@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# Version 0.1
 from StoneX.initialize import *
 import numpy as np
 from StoneX.constants import *
