@@ -2,12 +2,12 @@
 """
     Fichier de script
 """
+from StoneX.logging_init import *
 from StoneX.sample import *
 from StoneX.functions import *
-import logging
 
 # Defining the logger
-logger = logging.getLogger(__name__)
+logger = init_log(__name__, console_level='debug', file_level='info')
 
 
 ###########

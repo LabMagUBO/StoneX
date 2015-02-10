@@ -12,6 +12,7 @@ from sympy.abc import x
 # My own modules
 #from constants import *
 #from functions import *
+from StoneX.logging_init import *
 from StoneX.models import *
 
 ##############################
@@ -119,7 +120,7 @@ class Domain(object):
     """
 
     def __init__(self):
-        self.logger= logging.getLogger(__name__)
+        self.logger = init_log(__name__, console_level='debug', file_level='info')
         self.logger.info("Sample created.")
         self.model()
 

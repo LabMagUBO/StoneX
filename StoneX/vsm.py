@@ -13,11 +13,11 @@ import numpy as np
 #from sympy.abc import x
 
 # My own modules
+from StoneX.logging_init import *
 #from constants import *
 from StoneX.functions import *
 from StoneX.models import *
 
-import logging
 
 ##############################
 # Defining classes
@@ -37,7 +37,10 @@ class VSM(object):
             H_field_max = 100 Oe    Max field for hysteresis cycles
             n_H_field = 2**6        Cycles' number of points
         """
-        self.logger = logging.getLogger(__name__)
+        # Setting logger
+        self.logger = init_log(__name__, console_level='debug', file_level='info')
+
+        # Main attributes
         self.H_field = 300 * 1e3 / 4 / np.pi
         self.phi = 0
         self.H_field_max = 100 * 1e3 / 4 / np.pi
