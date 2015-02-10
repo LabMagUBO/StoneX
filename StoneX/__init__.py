@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from Stoner1_5.initialize import *
+from StoneX.initialize import *
 import numpy as np
-from Stoner1_5.constants import *
-from Stoner1_5.functions import *
-from Stoner1_5.vsm import *
-from Stoner1_5.sample import *
-import Stoner1_5.scripts
+from StoneX.constants import *
+from StoneX.functions import *
+from StoneX.vsm import *
+from StoneX.sample import *
+import StoneX.scripts

@@ -14,8 +14,8 @@ import numpy as np
 
 # My own modules
 #from constants import *
-from Stoner1_5.functions import *
-from Stoner1_5.models import *
+from StonerX.functions import *
+from StonerX.models import *
 
 import logging
 
@@ -25,7 +25,8 @@ import logging
 
 
 class VSM(object):
-    """ VSM apparatus. All the magnetometer parameters are defined here.
+    """
+        VSM apparatus. All the magnetometer parameters are defined here.
         The angle phi is stored in radians, but is given in degrees.
     """
     def __init__(self):

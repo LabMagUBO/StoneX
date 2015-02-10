@@ -2,8 +2,8 @@
 """
     Fichier de script
 """
-from Stoner1_5.sample import *
-from Stoner1_5.functions import *
+from StonerX.sample import *
+from StonerX.functions import *
 import logging
 
 # Defining the logger

@@ -7,13 +7,13 @@
 
 
 # Import module
-from Stoner1_5 import *
+from StoneX import *
 
 # Activate logging
 logger = logging.getLogger(__name__)
 
 # Define output folder
-define_output('test')
+define_output('output')
 
 # Creating the VSM
 vsm = VSM()

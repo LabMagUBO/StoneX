@@ -12,7 +12,7 @@ from sympy.abc import x
 # My own modules
 #from constants import *
 #from functions import *
-from Stoner1_5.models import *
+from StonerX.models import *
 
 ##############################
 # Defining classes
