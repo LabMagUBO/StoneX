@@ -45,14 +45,14 @@ if False:
     scripts.Garcia_Otero_rotation(sample, vsm)
 
 #### Franco-Conde
-if False:
+if True:
     fcsample = load_class(Domain, Franco_Conde)
 
     # Test Franco-Conde
     #scripts.francoTest(fcsample, vsm)
 
     # Franco-Conde Cycle
-    #scripts.Franco_Conde_cycle(fcsample, vsm)
+    scripts.Franco_Conde_cycle(fcsample, vsm)
 
     # Franco-Conde rotation
     #scripts.Franco_Conde_rotation(fcsample, vsm)

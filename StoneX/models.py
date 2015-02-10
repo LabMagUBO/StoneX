@@ -7,9 +7,9 @@ import numpy as np
 #import pylab as pl
 #from scipy import optimize, integrate
 
-from StonerX.constants import *
+from StoneX.constants import *
 #from classes import *
-from StonerX.functions import *
+from StoneX.functions import *
 from scipy import optimize, integrate
 
 import logging

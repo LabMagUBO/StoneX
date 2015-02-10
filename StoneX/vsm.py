@@ -14,8 +14,8 @@ import numpy as np
 
 # My own modules
 #from constants import *
-from StonerX.functions import *
-from StonerX.models import *
+from StoneX.functions import *
+from StoneX.models import *
 
 import logging
 
