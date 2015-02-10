@@ -13,20 +13,6 @@ from scipy import optimize, integrate
 ###########################
 # Folder management
 #############################
-def define_output(output='output'):
-    global dos_cycles, dos_data, dos_pdf, dos_energy
-    
-    logger = logging.getLogger(__name__)
-    ## Folders
-    dos_cycles = output + "/cycles"
-    dos_data = output + "/dat"
-    dos_pdf = output + "/pdf"
-    dos_energy = output + "/energy"
-
-    logger.debug("Creating/Cleaning folders. Output folder: {0}".format(output))
-    create_folders([dos_cycles, dos_data, dos_pdf, dos_energy])
-    clean_folders([dos_cycles, dos_data, dos_pdf, dos_energy])
-
 def create_folders(folders):
     """ Creation of the folders
     """

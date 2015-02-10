@@ -7,18 +7,19 @@
 
 
 # Import module
-from Stoner1_5 import *
+from StoneX import *
 
 # Activate logging
 logger = logging.getLogger(__name__)
 
-# Define output folder
-define_output('test')
+logger.info("Version du programme{}".format(StoneX.__version__))
 
 # Creating the VSM
 vsm = VSM()
 logger.info("Etat du VSM : %s", vsm)
 
+# Define output folder for data files
+vsm.set_output('output')
 
 # Setting the VSM parameters
 #vsm.set_angle(0)
@@ -45,14 +46,14 @@ if False:
     scripts.Garcia_Otero_rotation(sample, vsm)
 
 #### Franco-Conde
-if True:
+if False:
     fcsample = load_class(Domain, Franco_Conde)
 
     # Test Franco-Conde
     #scripts.francoTest(fcsample, vsm)
 
     # Franco-Conde Cycle
-    #scripts.Franco_Conde_cycle(fcsample, vsm)
+    scripts.Franco_Conde_cycle(fcsample, vsm)
 
     # Franco-Conde rotation
     #scripts.Franco_Conde_rotation(fcsample, vsm)
