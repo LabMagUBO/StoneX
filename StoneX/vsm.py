@@ -194,7 +194,7 @@ class VSM(object):
         # Export the cycle if required
         if export: self.export_cycle(tab, sample, idx)
 
-        return tab, H_coer, Mt_xtrm, Ml_rem
+        return tab, H_coer, Mt_xtrm * 1e3 * sample.V_f * 1e6, Ml_rem * 1e3 * sample.V_f * 1e6
 
     def do_rotation(self, sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=True, export_cycle=True, display_cycle=False):
         """
@@ -329,4 +329,4 @@ class VSM(object):
         self.logger.info("Exporting rotation \n\t-> graph: {0} \n\t-> data: {1}".format(fileNameGraph, fileNameData))
 
         #Exporting data
-        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe) \t Mt_min(A/m) \t Mt_max \t Ml_rem1 \t Ml_rem2')
+        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe) \t Mt_min(microemu) \t Mt_max \t Ml_rem1 \t Ml_rem2')
