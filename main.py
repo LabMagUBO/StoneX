@@ -51,10 +51,10 @@ if True:
     #scripts.francoTest(fcsample, vsm)
 
     # Franco-Conde Cycle
-    scripts.Franco_Conde_cycle(fcsample, vsm)
+    #scripts.Franco_Conde_cycle(fcsample, vsm)
 
     # Franco-Conde rotation
-    #scripts.Franco_Conde_rotation(fcsample, vsm)
+    scripts.Franco_Conde_rotation(fcsample, vsm)
 
     #scripts.Franco_Conde_evolHc(fcsample, vsm)
 
