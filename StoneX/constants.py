@@ -7,6 +7,11 @@ import numpy as np
 ################################################
 # Constants and variables definitions
 ################################################
+# Recording the file name of the main script
+import __main__ as main
+main_file = main.__file__
+
+
 # Physical constants
 mu_0 = 4*np.pi*1e-7 #H/m
 k_B = 1.3806488 * 1e-23 #m2 kg s-2 K-1

@@ -13,11 +13,11 @@ import numpy as np
 #from sympy.abc import x
 
 # My own modules
+from StoneX.logging_init import *
 #from constants import *
 from StoneX.functions import *
 from StoneX.models import *
 
-import logging
 
 ##############################
 # Defining classes
@@ -37,7 +37,10 @@ class VSM(object):
             H_field_max = 100 Oe    Max field for hysteresis cycles
             n_H_field = 2**6        Cycles' number of points
         """
-        self.logger = logging.getLogger(__name__)
+        # Setting logger
+        self.logger = init_log(__name__, console_level='debug', file_level='info')
+
+        # Main attributes
         self.H_field = 300 * 1e3 / 4 / np.pi
         self.phi = 0
         self.H_field_max = 100 * 1e3 / 4 / np.pi
@@ -134,18 +137,20 @@ class VSM(object):
         self.logger.debug("Paramètres VSM \n\t-> phi=%s deg", np.degrees(self.phi))
 
         # Array which will contain the data cycle (H, Ml, Mt)
-        tab = np.zeros((self.n_H_field * 2, 3))
+        tab = np.zeros((self.n_H_field * 2 + 1, 3))
 
-        i = 0 # field index
         j = 0 # coercitive field index
+        k = 0 # remanence index
         #last_Ml = sample.M_f   #last Longitudinal magnetization
         last_Ml = self.get_magnetization(sample)[0],        #Actual transverse magnetization
         last_H = self.H_field_max+1                         #Field, higher than the cycle's first point
         H_coer = np.zeros(2, dtype=float)                   #Coercitive fields array initialization
+        Ml_rem = np.zeros(2, dtype=float)                   #Remanence longitudinal magnetization
 
-        # Decreasing field part
-        for self.H_field in np.linspace(self.H_field_max, -self.H_field_max, self.n_H_field):
-            #print(self.H_field)
+        half_cycle = np.linspace(self.H_field_max, -self.H_field_max, self.n_H_field, endpoint=False)
+        full_cycle = np.append([half_cycle, half_cycle[::-1]], [self.H_field_max])
+
+        for i, self.H_field in enumerate(full_cycle):
             sample.apply(self)
             sample.relax()
 
@@ -154,45 +159,34 @@ class VSM(object):
             (Ml, Mt) = self.get_magnetization(sample)
             tab[i] = self.H_field, Ml, Mt
 
+            # Recording the coercive fields
             if i != 0:                      #not the first point
                 if last_Ml * Ml < 0:
-                    #print(last_Ml, Ml)
-                    if j != 2:
-                        H_coer[j] = last_H - last_Ml * (self.H_field - last_H) / (Ml - last_Ml)
-                        j += 1
-                elif Ml == 0:
-                    #print("null")
-                    H_coer[j] = self.H_field
-                    j +=1
-
-            last_Ml = Ml
-            last_H = self.H_field
-            i += 1
-
-        # Increasing field part
-        for self.H_field in np.linspace(-self.H_field_max, self.H_field_max, self.n_H_field):
-            sample.apply(self)
-            sample.relax()
-
-            if export_energy: sample.export_energy(self, i)
-
-            (Ml, Mt) = self.get_magnetization(sample)
-            tab[i] = self.H_field, Ml, Mt
-
-            #Calculate the coercitive field
-            if last_Ml * Ml < 0:
-                if j == 2:
-                    self.logger.error("Calcul du champ coercitif erroné. Déjà deux valeurs en mémoire")
-                else:
                     H_coer[j] = last_H - last_Ml * (self.H_field - last_H) / (Ml - last_Ml)
                     j += 1
-            elif Ml == 0:
-                H_coer[j] = self.H_field
-                j +=1
 
+                elif Ml == 0:
+                    H_coer[j] = self.H_field
+                    j +=1
+            if j > 2:  #Test in case...
+                self.logger.error("there is more than two coercive field values")
+
+            # Recording the remanence magnetization
+            if self.H_field * last_H < 0:
+                Ml_rem[k] = last_Ml + (Ml - last_Ml) / (self.H_field - last_H) * (0 - last_Ml)
+                k += 1
+            elif self.H_field == 0:
+                Ml_rem[k] = Ml
+                k += 1
+
+            #Saving the current values
             last_Ml = Ml
             last_H = self.H_field
-            i += 1
+
+        # Searching the extremum of Mt
+        min_Mt = np.amin(tab[:, 2])
+        max_Mt = np.amax(tab[:, 2])
+        Mt_xtrm = np.array([min_Mt, max_Mt])
 
         # Final commands
         # Draw cycle if required
@@ -200,7 +194,7 @@ class VSM(object):
         # Export the cycle if required
         if export: self.export_cycle(tab, sample, idx)
 
-        return tab, H_coer
+        return tab, H_coer, Mt_xtrm * 1e3 * sample.V_f * 1e6, Ml_rem * 1e3 * sample.V_f * 1e6
 
     def do_rotation(self, sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=True, export_cycle=True, display_cycle=False):
         """
@@ -212,7 +206,7 @@ class VSM(object):
         nb_values = int((phi_stop - phi_start)/phi_step) + 1
         #print nb_values
 
-        tab = np.zeros((nb_values, 3))
+        tab = np.zeros((nb_values, 7))
         tab[:, 0] = np.arange(nb_values)*phi_step
 
         # Defining id lenght for the cycle files
@@ -225,10 +219,12 @@ class VSM(object):
             # File Id
             fileId = str(idx).zfill(lenght)
             # Launching cycle
-            cycle, H_coer = self.do_cycle(sample, idx=fileId, display=display_cycle, export=export_cycle, verbose=False)
+            cycle, H_coer, Mt_xtrm, Ml_rem = self.do_cycle(sample, idx=fileId, display=display_cycle, export=export_cycle, verbose=False)
 
             # Recording the coercive fields
             tab[idx, 1:3] = convert_field(H_coer, 'cgs')
+            tab[idx, 3:5] = Mt_xtrm
+            tab[idx, 5:7] = Ml_rem
 
             if export: self.export_rotation(tab, sample)
 
@@ -333,4 +329,4 @@ class VSM(object):
         self.logger.info("Exporting rotation \n\t-> graph: {0} \n\t-> data: {1}".format(fileNameGraph, fileNameData))
 
         #Exporting data
-        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe)')
+        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe) \t Mt_min(microemu) \t Mt_max \t Ml_rem1 \t Ml_rem2')
