@@ -234,7 +234,7 @@ def Franco_Conde_rotation(sample, vsm):
 
     logger.info("Sample status : %s", sample)
 
-    vsm.do_rotation(sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=False, export_cycle=True, display_cycle=False)
+    vsm.do_rotation(sample, phi_step = 5, phi_start = 0, phi_stop = 30, export=True, display=False, export_cycle=True, display_cycle=False)
 
 def Franco_Conde_evolHc(sample, vsm):
     #### VSM ####

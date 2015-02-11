@@ -206,7 +206,7 @@ class VSM(object):
         nb_values = int((phi_stop - phi_start)/phi_step) + 1
         #print nb_values
 
-        tab = np.zeros((nb_values, 3))
+        tab = np.zeros((nb_values, 7))
         tab[:, 0] = np.arange(nb_values)*phi_step
 
         # Defining id lenght for the cycle files
@@ -223,6 +223,8 @@ class VSM(object):
 
             # Recording the coercive fields
             tab[idx, 1:3] = convert_field(H_coer, 'cgs')
+            tab[idx, 3:5] = Mt_xtrm
+            tab[idx, 5:7] = Ml_rem
 
             if export: self.export_rotation(tab, sample)
 
@@ -327,4 +329,4 @@ class VSM(object):
         self.logger.info("Exporting rotation \n\t-> graph: {0} \n\t-> data: {1}".format(fileNameGraph, fileNameData))
 
         #Exporting data
-        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe)')
+        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe) \t Mt_min(A/m) \t Mt_max \t Ml_rem1 \t Ml_rem2')
