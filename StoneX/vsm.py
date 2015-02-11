@@ -137,14 +137,42 @@ class VSM(object):
         self.logger.debug("Paramètres VSM \n\t-> phi=%s deg", np.degrees(self.phi))
 
         # Array which will contain the data cycle (H, Ml, Mt)
-        tab = np.zeros((self.n_H_field * 2, 3))
+        tab = np.zeros((self.n_H_field * 2 + 1, 3))
 
-        i = 0 # field index
+        #i = 0 # field index
         j = 0 # coercitive field index
         #last_Ml = sample.M_f   #last Longitudinal magnetization
         last_Ml = self.get_magnetization(sample)[0],        #Actual transverse magnetization
         last_H = self.H_field_max+1                         #Field, higher than the cycle's first point
         H_coer = np.zeros(2, dtype=float)                   #Coercitive fields array initialization
+
+        half_cycle = np.linspace(self.H_field_max, -self.H_field_max, self.n_H_field, endpoint=False)
+        full_cycle = np.append([half_cycle, half_cycle[::-1]], [self.H_field_max])
+
+        for i, self.H_field in enumerate(full_cycle):
+            sample.apply(self)
+            sample.relax()
+
+            if export_energy: sample.export_energy(self, i)
+
+            (Ml, Mt) = self.get_magnetization(sample)
+            tab[i] = self.H_field, Ml, Mt
+
+            if i != 0:                      #not the first point
+                if last_Ml * Ml < 0:
+                    H_coer[j] = last_H - last_Ml * (self.H_field - last_H) / (Ml - last_Ml)
+                    j += 1
+
+                elif Ml == 0:
+                    H_coer[j] = self.H_field
+                    j +=1
+            if j > 2:  #Test in case...
+                self.logger.error("there is more than two coercive field values")
+
+            last_Ml = Ml
+            last_H = self.H_field
+
+        """
 
         # Decreasing field part
         for self.H_field in np.linspace(self.H_field_max, -self.H_field_max, self.n_H_field):
@@ -197,7 +225,7 @@ class VSM(object):
             last_Ml = Ml
             last_H = self.H_field
             i += 1
-
+        """
         # Final commands
         # Draw cycle if required
         if display: self.display_cycle(tab, sample)

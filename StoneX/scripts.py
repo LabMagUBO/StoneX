@@ -199,7 +199,7 @@ def Franco_Conde_test(sample, vsm):
 
 def Franco_Conde_cycle(sample, vsm):
     #### VSM ####
-    vsm.set_angle(0)
+    vsm.set_angle(30)
     vsm.H_field = convert_field(20, 'si')
     vsm.H_field_max = convert_field(20, 'si')
     vsm.n_H_field = 2**7
@@ -207,10 +207,10 @@ def Franco_Conde_cycle(sample, vsm):
     logger.info("VSM status\n%s", vsm)
 
     #### SAMPLE ####
-    #sample.J_ex = 0
+    sample.J_ex = 0
     sample.T = 300
     sample.K_f = sample.K_f * 5 # Coercivité de 10 Oe à 0K
-    sample.J_ex = sample.J_ex / 10      #réduction de l'échange
+    #sample.J_ex = sample.J_ex / 10      #réduction de l'échange
 
     logger.info("Sample status : %s", sample)
 
