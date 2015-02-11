@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Version 0.1
-__version__ = '0.1, 2015-02-10'
+__version__ = '0.2, 2015-02-11'
 
 # Can't work without
 import numpy as np
