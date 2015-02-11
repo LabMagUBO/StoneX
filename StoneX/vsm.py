@@ -152,6 +152,7 @@ class VSM(object):
             sample.apply(self)
             sample.relax()
 
+            # Exporting energy graph if asked
             if export_energy: sample.export_energy(self, i)
 
             (Ml, Mt) = self.get_magnetization(sample)

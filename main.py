@@ -2,28 +2,22 @@
 # -*- coding: utf-8 -*-
 
 """
-    Main program
+    Main program.
 """
 
-# Import module
+# Importing StoneX module
 from StoneX import *
 
 # Activate logging (cleaning the log on the first logger)
 logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
-
-logger.info("Version du programme{}".format(StoneX.__version__))
-
-logger.info("info")
-logger.debug("debug")
-logger.error("Error")
-
+logger.info("Version du programme {}".format(StoneX.__version__))
 
 # Creating the VSM
 vsm = VSM()
-logger.info("Etat du VSM : %s", vsm)
-
 # Define output folder for data files
 vsm.set_output('output')
+logger.info("Etat du VSM : {}".format(vsm))
+
 
 # Setting the VSM parameters
 #vsm.set_angle(0)
@@ -50,7 +44,7 @@ if False:
     scripts.Garcia_Otero_rotation(sample, vsm)
 
 #### Franco-Conde
-if False:
+if True:
     fcsample = load_class(Domain, Franco_Conde)
 
     # Test Franco-Conde
