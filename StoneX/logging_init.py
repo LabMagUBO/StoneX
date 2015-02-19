@@ -4,7 +4,7 @@ from StoneX.constants import *
 
 def set_colors():
     """
-        Define the colors in the console
+        Define the colors in the console.
     """
     logging.addLevelName( logging.INFO, "\033[1;32m%s\033[1;0m" % logging.getLevelName(logging.INFO))
     logging.addLevelName( logging.DEBUG, "\033[1;34m%s\033[1;0m" % logging.getLevelName(logging.DEBUG))
@@ -16,6 +16,11 @@ def init_log(name, console_level='debug', file_level='info', log_file=main_file,
         Initialize the logger.
 
         Mode : append by default. In order to clean the log, need to set the fist logger to 'w' mode.
+
+        Usage: initialize a new logger at each level.
+            logger = init_log(__name__)
+        then
+            logger.info() / logger.warn() / ...
     """
     # Create the logger
     logger = logging.getLogger(name)
