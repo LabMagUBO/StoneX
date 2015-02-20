@@ -23,7 +23,7 @@ def stoner_test(sample, vsm):
     vsm.set_angle(5)
     vsm.H_field = convert_field(5, 'si')
     vsm.H_field_max = convert_field(4, 'si')
-    vsm.n_H_field = 2**8
+    vsm.n_H_field = 2**7
 
     #### SAMPLE ####
     #sample.J_ex = 0
@@ -234,7 +234,7 @@ def Franco_Conde_rotation(sample, vsm):
 
     logger.info("Sample status : %s", sample)
 
-    vsm.do_rotation(sample, phi_step = 5, phi_start = 0, phi_stop = 30, export=True, display=False, export_cycle=True, display_cycle=False)
+    vsm.do_rotation(sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=False, export_cycle=True, display_cycle=False)
 
 def Franco_Conde_evolHc(sample, vsm):
     #### VSM ####

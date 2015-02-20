@@ -226,7 +226,8 @@ class VSM(object):
             tab[idx, 3:5] = Mt_xtrm
             tab[idx, 5:7] = Ml_rem
 
-            if export: self.export_rotation(tab, sample)
+            if export:
+                self.export_rotation(tab, sample)
 
         if display: self.display_rotation(tab, sample)
 
@@ -282,11 +283,30 @@ class VSM(object):
 
     #Rotation graph
     def draw_rotation(self, rotation, sample):
-        fig = pl.figure()
-        ax = fig.add_subplot(111, polar=True)
-        ax.grid(True)
-        ax.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2), 'ro-', label='Hc')
-        ax.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2), 'bo-', label='He')
+        fig = pl.figure(figsize=(13, 13))
+        coer = fig.add_subplot(221, polar=True)
+        coer.grid(True)
+        coer.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2), 'ro-', label='Hc')
+        coer.legend()
+
+        ex = fig.add_subplot(222, polar=True)
+        ex.grid(True)
+        ex.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2), 'bo-', label='He')
+        ex.legend()
+
+        trans = fig.add_subplot(223, polar = True)
+        trans.grid(True)
+        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 3]), 'go-', label='min(Mt)')
+        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 4]), 'yo-', label='max(Mt)')
+        trans.legend()
+
+        rem = fig.add_subplot(224, polar = True)
+        rem.grid(True)
+        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 5]), 'mo-', label='Mr_1')
+        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 6]), 'co-', label='Mr_2')
+        rem.legend()
+
+
         #ax.set_xlabel('Field (A/m)')
         #ax.set_ylabel('M (A/m)')
 
@@ -305,7 +325,7 @@ class VSM(object):
         #ax3.set_ylim(y1 * 1e3 * sample.V_f * 1e6, y2 * 1e3 * sample.V_f * 1e6)
         #ax3.set_ylabel('Mag. Moment (micro emu)')
 
-        ax.legend()
+
 
     def display_rotation(self, rotation, sample):
         # Plot the graph
