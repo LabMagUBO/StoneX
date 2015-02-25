@@ -241,27 +241,24 @@ class VSM(object):
         fig = pl.figure()
         ax = fig.add_subplot(111)
         ax.grid(True)
-        fact_conv = 1e3 * mu_0
+        fact_conv = 1e3 * mu_0      #convert to mT, hence mu_0 * H * 1000
         ax.plot(fact_conv * cycle[:, 0], cycle[:, 1], 'ro-', label='Ml')
         ax.plot(fact_conv * cycle[:, 0], cycle[:, 2], 'bo-', label='Mt')
         ax.plot(fact_conv * cycle[:, 0], np.sqrt(cycle[:, 2]**2 + cycle[:, 1]**2), 'go-', label='Total')
-        ax.set_xlabel('Induction (mT)')
-        ax.set_ylabel('M (A/m)')
+        ax.set_xlabel('Induction B (mT)')
+        ax.set_ylabel('Mag. moment (A m**2)')
 
         # second axis
-        x1, x2 = ax.get_xlim()
         #x1, x2 = ax.get_xlim()
-        ax2 = ax.twiny()
-        ax2.set_xlim(convert_field(x1, 'cgs')/fact_conv, convert_field(x2, 'cgs')/fact_conv)
-        #ax2.set_ylim(y1 / 1e3 * sample.M_f, y2 / 1e3 * sample.M_f)
-        #ax2.set_xticks( np.linspace( int(convert_field(y1, 'cgs')), int(convert_field(y2, 'cgs')), 8) )
-        ax2.set_xlabel('Field (Oe)')
+        #ax2 = ax.twiny()
+        #ax2.set_xlim(convert_field(x1, 'cgs')/fact_conv, convert_field(x2, 'cgs')/fact_conv)
+        #ax2.set_xlabel('Field (Oe)')
 
         #new x axis
-        ax3 = ax.twinx()
-        y1, y2 = ax.get_ylim()
-        ax3.set_ylim(y1 * 1e3 * sample.V_f * 1e6, y2 * 1e3 * sample.V_f * 1e6)
-        ax3.set_ylabel('Mag. Moment (micro emu)')
+        #ax3 = ax.twinx()
+        #y1, y2 = ax.get_ylim()
+        #ax3.set_ylim(y1 * 1e3 * 1e9, y2 * 1e3 * 1e9)
+        #ax3.set_ylabel('Mag. Moment (micro emu)')
 
         ax.legend()
 
