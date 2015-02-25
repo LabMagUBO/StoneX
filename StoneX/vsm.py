@@ -202,7 +202,14 @@ class VSM(object):
     def do_rotation(self, sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=True, export_cycle=True, display_cycle=False):
         """
             Do an azimuthal measurement.
-            Export an array with phi, Hc, He
+            Export an array with the following columns :
+                — phi(deg)
+                — Hc * mu_0 (T)
+                — Hc * mu_0 (T)
+                — min(m_t) (A m**2)
+                — max(m_t) (A m**2)
+                — left ml_rem (A m**2)
+                — right ml_rem (A m**2)
         """
         self.logger.info("Beginning rotation")
 
@@ -225,7 +232,7 @@ class VSM(object):
             cycle, H_coer, mt_xtrm, ml_rem = self.do_cycle(sample, idx=fileId, display=display_cycle, export=export_cycle, verbose=False)
 
             # Recording the coercive fields
-            tab[idx, 1:3] = H_coer
+            tab[idx, 1:3] = H_coer * mu_0
             tab[idx, 3:5] = mt_xtrm
             tab[idx, 5:7] = ml_rem
 
@@ -340,6 +347,9 @@ Ferromagnetic volume : Vf = {1} m**3
         pl.show()
 
     def export_rotation(self, rotation, sample):
+        """
+            Export rotation graph and data, in SI units (no choice).
+        """
         # Plot the graph
         self.draw_rotation(rotation, sample)
 
@@ -355,4 +365,5 @@ Ferromagnetic volume : Vf = {1} m**3
         self.logger.info("Exporting rotation \n\t-> graph: {0} \n\t-> data: {1}".format(fileNameGraph, fileNameData))
 
         #Exporting data
-        np.savetxt(fileNameData, rotation, header='theta (deg) \t Hc_l(Oe) \t Hc_r(Oe) \t Mt_min(microemu) \t Mt_max \t Ml_rem1 \t Ml_rem2')
+        header = "theta (deg) \t Hc_l(T) \t Hc_r(T) \t Mt_min(A m**2) \t Mt_max(A m**2) \t Ml_rem1(A m**2) \t Ml_rem2(A m**2)"
+        np.savetxt(fileNameData, rotation, header=header)
