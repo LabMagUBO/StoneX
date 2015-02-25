@@ -272,6 +272,15 @@ class VSM(object):
         pl.show()
 
     def export_cycle(self, cycle, sample, idx, unit='si'):
+        """
+            Export the plot in pdf format and the cycle data.
+            By default, the data are in SI units.
+            arguments:
+                cycle : data to export and plot
+                sample : the sample
+                idx : id number for the pdf
+                unit : 'si' by default. Can be changed to 'cgs'
+        """
         # Plot the graph
         self.draw_cycle(cycle, sample)
 
@@ -284,12 +293,21 @@ class VSM(object):
         if unit == 'cgs':
             cycle[:, 0] = convert_field(cycle[:, 0], 'cgs')
             cycle[:, 1:3] = convert_moment(cycle[:, 1:3], 'cgs')
+            columns_unit = 'B field(T)     mu_l(A m**2)       mu_t(A m**2)'
         elif unit == 'si':
             cycle[:, 0] *= mu_0
+            columns_unit = 'B field(T)     mu_l(A m**2)       mu_t(A m**2)'
         else:
             self.logger.error('Unit not recognized. Use SI units.')
+            columns_unit = 'Error : undefined units'
 
-        np.savetxt(fileName, cycle, header='H \t Ml \t Mt')
+        header = """Cycle data
+Magnetization : Mf = {0} A/m
+Ferromagnetic volume : Vf = {1} m**3
+
+{2}""".format(sample.M_f, sample.V_f, columns_unit)
+
+        np.savetxt(fileName, cycle, header=header)
         pl.close()
 
     #Rotation graph
