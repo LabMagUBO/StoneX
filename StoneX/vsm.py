@@ -312,45 +312,25 @@ Ferromagnetic volume : Vf = {1} m**3
         fig = pl.figure(figsize=(13, 13))
         coer = fig.add_subplot(221, polar=True)
         coer.grid(True)
-        coer.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2), 'ro-', label='Hc')
+        coer.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2) * 1e3 * mu_0, 'ro-', label='Hc (mT)')
         coer.legend()
 
         ex = fig.add_subplot(222, polar=True)
         ex.grid(True)
-        ex.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2), 'bo-', label='He')
+        ex.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2) * 1e3 * mu_0, 'bo-', label='He (mT)')
         ex.legend()
 
         trans = fig.add_subplot(223, polar = True)
         trans.grid(True)
-        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 3]), 'go-', label='min(Mt)')
-        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 4]), 'yo-', label='max(Mt)')
+        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 3]), 'go-', label='min(Mt) (A m**2)')
+        trans.plot(np.radians(rotation[:, 0]), np.abs(rotation[:, 4]), 'yo-', label='max(Mt) (A m**2)')
         trans.legend()
 
         rem = fig.add_subplot(224, polar = True)
         rem.grid(True)
-        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 5]), 'mo-', label='Mr_1')
-        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 6]), 'co-', label='Mr_2')
+        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 5]), 'mo-', label='Mr_1 (A m**2)')
+        rem.plot(np.radians(rotation[:,0]), np.abs(rotation[:, 6]), 'co-', label='Mr_2 (A m**2)')
         rem.legend()
-
-
-        #ax.set_xlabel('Field (A/m)')
-        #ax.set_ylabel('M (A/m)')
-
-        # second axis
-        #x1, x2 = ax.get_xlim()
-        #x1, x2 = ax.get_xlim()
-        #ax2 = ax.twiny()
-        #ax2.set_xlim(convert_field(x1, 'cgs'), convert_field(x2, 'cgs'))
-        #ax2.set_ylim(y1 / 1e3 * sample.M_f, y2 / 1e3 * sample.M_f)
-        #ax2.set_xticks( np.linspace( int(convert_field(y1, 'cgs')), int(convert_field(y2, 'cgs')), 8) )
-        #ax2.set_xlabel('Field (Oe)')
-
-        #new x axis
-        #ax3 = ax.twinx()
-        #y1, y2 = ax.get_ylim()
-        #ax3.set_ylim(y1 * 1e3 * sample.V_f * 1e6, y2 * 1e3 * sample.V_f * 1e6)
-        #ax3.set_ylabel('Mag. Moment (micro emu)')
-
 
 
     def display_rotation(self, rotation, sample):
