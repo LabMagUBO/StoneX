@@ -196,7 +196,7 @@ class Domain(object):
         txt += "  f = {0} \n".format(self.fraction)
         txt += "\nEnergy: \n"
         txt += " J_ex : {0} J/m**2\n".format(self.J_ex)
-        txt += " K_f : {0} J/m**2\n".format(self.K_f)
+        txt += " K_f : {0} J/m**3\n".format(self.K_f)
         return txt
 
     def print_energy(self, vsm):
