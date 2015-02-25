@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import logging
 import numpy as np
 import pylab as pl
-from scipy import optimize, integrate
+from StoneX.logging_init import *
+#from scipy import optimize, integrate
 
 #from Stoner.constants import *
 #from objects import *
@@ -71,17 +71,29 @@ def search_eqProb(sample):
 
         return M_l, M_t, np.degrees(theta_eq % (2*np.pi)), f
 
+def convert_to(value, factor, system, logger):
+    if system == 'si':
+        return value * factor
+    elif system == 'cgs':
+        return value / factor
+    else:
+        logger.warn("this system does not exists")
 
 
 def convert_field(value, system):
     """
         Convert «value» to the «system»
     """
+    logger = init_log(__name__, console_level='debug', file_level='info')
     factor = 1e3 / 4 / np.pi
+    return convert_to(value, factor, system, logger)
 
-    if system == 'si':
-        return value * factor
-    elif system == 'cgs':
-        return value / factor
-    else:
-        print("WARNING : this system does not exists")
+
+
+def convert_moment(value, system):
+    """
+        Convert «value» to the «system»
+    """
+    logger = init_log(__name__, console_level='debug', file_level='info')
+    factor = 1e-3       #1 emu = 1e-3 A m**2
+    return convert_to(value, factor, system, logger)

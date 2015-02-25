@@ -28,6 +28,7 @@ class VSM(object):
     """
         VSM apparatus. All the magnetometer parameters are defined here.
         The angle phi is stored in radians, but is given in degrees.
+        All the others units are form the Internatial System.
     """
     def __init__(self):
         """
@@ -116,36 +117,38 @@ class VSM(object):
     # Measure the sample
     def get_magnetization(self, sample):
         """
-            Return the magnetization M_l and M_t, according to the VSM orientation, and depending of the probability distribution.
+            Return the magnetic moment m_l and m_t, according to the VSM orientation, and depending of the probability distribution.
             Variables inside:
-                - L : longitudinal magnetization
-                - T : transverse magnetization
+                - L : longitudinal moment
+                - T : transverse moment
         """
 
-        L = np.sum( np.cos(self.phi + sample.theta) * sample.probM ) * sample.M_f
-        T = np.sum( np.sin(self.phi + sample.theta) * sample.probM ) * sample.M_f
+        L = np.sum( np.cos(self.phi + sample.theta) * sample.probM ) * sample.M_f * sample.V_f
+        T = np.sum( np.sin(self.phi + sample.theta) * sample.probM ) * sample.M_f * sample.V_f
 
         return L, T
 
     # Do measurements
     def do_cycle(self, sample, idx=0, display=False, export=True, display_energy=False, export_energy=False, verbose=True):
         """
-            Do a hysteresis cycle on the sample, and return the table (H, Ml, Mt), with the coercitive fields (Hc_l, Hc_r).
+            Do a hysteresis cycle on the sample, and return the table (H, ml, mt), with the coercitive fields (Hc_l, Hc_r),
+            the transversal moment extrema (min(mt), max(mt)), the remanent moments (ml_rem_left, ml_rem_right).
+            All are in SI units (A*m**2 for magnetic moments).
         """
         self.logger.info("Beginning cycle. Phi=%s deg", np.degrees(self.phi))
-        self.logger.debug("Paramètres du cycle\n\t display={0}\n\t export={1}\n\t display_energy={2}\n\t export_energy={3}".format(display, export, display_energy, export_energy))
-        self.logger.debug("Paramètres VSM \n\t-> phi=%s deg", np.degrees(self.phi))
+        self.logger.debug("Cycle parameters\n\t display={0}\n\t export={1}\n\t display_energy={2}\n\t export_energy={3}".format(display, export, display_energy, export_energy))
+        self.logger.debug("VSM parameters \n\t-> phi=%s deg", np.degrees(self.phi))
 
-        # Array which will contain the data cycle (H, Ml, Mt)
+        # Array which will contain the data cycle (H, ml, mt)
         tab = np.zeros((self.n_H_field * 2 + 1, 3))
 
         j = 0 # coercitive field index
         k = 0 # remanence index
         #last_Ml = sample.M_f   #last Longitudinal magnetization
-        last_Ml = self.get_magnetization(sample)[0],        #Actual transverse magnetization
+        last_ml = self.get_magnetization(sample)[0],        #Actual transverse magnetization
         last_H = self.H_field_max+1                         #Field, higher than the cycle's first point
         H_coer = np.zeros(2, dtype=float)                   #Coercitive fields array initialization
-        Ml_rem = np.zeros(2, dtype=float)                   #Remanence longitudinal magnetization
+        ml_rem = np.zeros(2, dtype=float)                   #Remanence longitudinal magnetization
 
         half_cycle = np.linspace(self.H_field_max, -self.H_field_max, self.n_H_field, endpoint=False)
         full_cycle = np.append([half_cycle, half_cycle[::-1]], [self.H_field_max])
@@ -156,37 +159,37 @@ class VSM(object):
 
             if export_energy: sample.export_energy(self, i)
 
-            (Ml, Mt) = self.get_magnetization(sample)
-            tab[i] = self.H_field, Ml, Mt
+            (ml, mt) = self.get_magnetization(sample)
+            tab[i] = self.H_field, ml, mt
 
             # Recording the coercive fields
             if i != 0:                      #not the first point
-                if last_Ml * Ml < 0:
-                    H_coer[j] = last_H - last_Ml * (self.H_field - last_H) / (Ml - last_Ml)
+                if last_ml * ml < 0:
+                    H_coer[j] = last_H - last_ml * (self.H_field - last_H) / (ml - last_ml)
                     j += 1
 
-                elif Ml == 0:
+                elif ml == 0:
                     H_coer[j] = self.H_field
                     j +=1
             if j > 2:  #Test in case...
                 self.logger.error("there is more than two coercive field values")
 
-            # Recording the remanence magnetization
+            # Recording the remanent moment
             if self.H_field * last_H < 0:
-                Ml_rem[k] = last_Ml + (Ml - last_Ml) / (self.H_field - last_H) * (0 - last_Ml)
+                ml_rem[k] = last_ml + (ml - last_ml) / (self.H_field - last_H) * (0 - last_ml)
                 k += 1
             elif self.H_field == 0:
-                Ml_rem[k] = Ml
+                ml_rem[k] = ml
                 k += 1
 
             #Saving the current values
-            last_Ml = Ml
+            last_ml = ml
             last_H = self.H_field
 
         # Searching the extremum of Mt
-        min_Mt = np.amin(tab[:, 2])
-        max_Mt = np.amax(tab[:, 2])
-        Mt_xtrm = np.array([min_Mt, max_Mt])
+        min_mt = np.amin(tab[:, 2])
+        max_mt = np.amax(tab[:, 2])
+        mt_xtrm = np.array([min_mt, max_mt])
 
         # Final commands
         # Draw cycle if required
@@ -194,7 +197,7 @@ class VSM(object):
         # Export the cycle if required
         if export: self.export_cycle(tab, sample, idx)
 
-        return tab, H_coer, Mt_xtrm * 1e3 * sample.V_f * 1e6, Ml_rem * 1e3 * sample.V_f * 1e6
+        return tab, H_coer, mt_xtrm, ml_rem
 
     def do_rotation(self, sample, phi_step = 5, phi_start = 0, phi_stop = 360, export=True, display=True, export_cycle=True, display_cycle=False):
         """
@@ -219,12 +222,12 @@ class VSM(object):
             # File Id
             fileId = str(idx).zfill(lenght)
             # Launching cycle
-            cycle, H_coer, Mt_xtrm, Ml_rem = self.do_cycle(sample, idx=fileId, display=display_cycle, export=export_cycle, verbose=False)
+            cycle, H_coer, mt_xtrm, ml_rem = self.do_cycle(sample, idx=fileId, display=display_cycle, export=export_cycle, verbose=False)
 
             # Recording the coercive fields
-            tab[idx, 1:3] = convert_field(H_coer, 'cgs')
-            tab[idx, 3:5] = Mt_xtrm
-            tab[idx, 5:7] = Ml_rem
+            tab[idx, 1:3] = H_coer
+            tab[idx, 3:5] = mt_xtrm
+            tab[idx, 5:7] = ml_rem
 
             if export:
                 self.export_rotation(tab, sample)
@@ -268,7 +271,7 @@ class VSM(object):
         # Display it
         pl.show()
 
-    def export_cycle(self, cycle, sample, idx):
+    def export_cycle(self, cycle, sample, idx, unit='si'):
         # Plot the graph
         self.draw_cycle(cycle, sample)
 
@@ -277,8 +280,16 @@ class VSM(object):
 
         fileName = self.dos_cycles + '/' + "cycle_n{0}_T{1}_phi{2}.dat".format(idx, sample.T, round(np.degrees(self.phi), 2))
         self.logger.info("Exporting cycle graph: {0}".format(fileName))
-        np.savetxt(fileName, cycle, header='H \t Ml \t Mt')
 
+        if unit == 'cgs':
+            cycle[:, 0] = convert_field(cycle[:, 0], 'cgs')
+            cycle[:, 1:3] = convert_moment(cycle[:, 1:3], 'cgs')
+        elif unit == 'si':
+            cycle[:, 0] *= mu_0
+        else:
+            self.logger.error('Unit not recognized. Use SI units.')
+
+        np.savetxt(fileName, cycle, header='H \t Ml \t Mt')
         pl.close()
 
     #Rotation graph
