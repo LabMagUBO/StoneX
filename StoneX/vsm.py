@@ -165,8 +165,12 @@ class VSM(object):
             # Recording the coercive fields
             if i != 0:                      #not the first point
                 if last_ml * ml < 0:
-                    H_coer[j] = last_H - last_ml * (self.H_field - last_H) / (ml - last_ml)
-                    j += 1
+                    try:
+                        H_coer[j] = last_H - last_ml * (self.H_field - last_H) / (ml - last_ml)
+                        j += 1
+                    except IndexError as err:
+                        self.logger.exception("Coercive field already defined.")
+                        self.logger.error(err)
 
                 elif ml == 0:
                     H_coer[j] = self.H_field
@@ -319,12 +323,12 @@ Ferromagnetic volume : Vf = {1} m**3
         fig = pl.figure(figsize=(13, 13))
         coer = fig.add_subplot(221, polar=True)
         coer.grid(True)
-        coer.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2) * 1e3 * mu_0, 'ro-', label='Hc (mT)')
+        coer.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]-rotation[:,2])/2) * 1e3, 'ro-', label='Hc (mT)')
         coer.legend()
 
         ex = fig.add_subplot(222, polar=True)
         ex.grid(True)
-        ex.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2) * 1e3 * mu_0, 'bo-', label='He (mT)')
+        ex.plot(np.radians(rotation[:, 0]), np.abs((rotation[:, 1]+rotation[:,2])/2) * 1e3, 'bo-', label='He (mT)')
         ex.legend()
 
         trans = fig.add_subplot(223, polar = True)
