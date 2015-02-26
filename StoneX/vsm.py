@@ -165,8 +165,12 @@ class VSM(object):
             # Recording the coercive fields
             if i != 0:                      #not the first point
                 if last_ml * ml < 0:
-                    H_coer[j] = last_H - last_ml * (self.H_field - last_H) / (ml - last_ml)
-                    j += 1
+                    try:
+                        H_coer[j] = last_H - last_ml * (self.H_field - last_H) / (ml - last_ml)
+                        j += 1
+                    except IndexError as err:
+                        self.logger.exception("Coercive field already defined.")
+                        self.logger.error(err)
 
                 elif ml == 0:
                     H_coer[j] = self.H_field
