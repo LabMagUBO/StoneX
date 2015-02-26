@@ -293,7 +293,7 @@ class VSM(object):
         self.draw_cycle(cycle, sample)
 
         # Export it
-        pl.savefig(self.dos_cycles + '/' + "cycle_n{0}_T{1}_phi{2}.pdf".format(idx, sample.T, round(np.degrees(self.phi)), 2))
+        pl.savefig(self.dos_cycles + '/' + "cycle_n{0}_T{1}_phi{2}.pdf".format(idx, sample.T, round(np.degrees(self.phi), 2)))
 
         fileName = self.dos_cycles + '/' + "cycle_n{0}_T{1}_phi{2}.dat".format(idx, sample.T, round(np.degrees(self.phi), 2))
         self.logger.info("Exporting cycle graph: {0}".format(fileName))
