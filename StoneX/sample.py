@@ -141,13 +141,9 @@ class Domain(object):
         self.V_f = self.V * self.fraction                # volume m**3, percentage of the total volume
         self.M_f = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)      #magnetization of Py in A/m, 400 μemu / 1cm2 / 10nm
         #self.theta_eq = 0.                      # magnetization orientation
+
         #Probability of magnetization
-        self.theta_n = 720
-        self.theta_step = 2 * np.pi / self.theta_n
-        self.theta = np.arange(0, 2*np.pi, self.theta_step)
-        self.probM = np.zeros(self.theta_n)    #probability array of magnetization direction
-        #initialization of the array
-        self.probM[0] = 1
+        self.set_discrete(0.5)
 
         # Magnetization (no need for that anymore, the VSM will measure it)
         #self.M_l = self.M_f
@@ -197,6 +193,8 @@ class Domain(object):
         txt += "\nEnergy: \n"
         txt += " J_ex : {0} J/m**2\n".format(self.J_ex)
         txt += " K_f : {0} J/m**3\n".format(self.K_f)
+        txt += "\n Parameters: \n"
+        txt += " theta_step = {0} deg\n".format(np.degrees(self.theta_step))
         return txt
 
     def print_energy(self, vsm):
@@ -217,6 +215,19 @@ class Domain(object):
         def get_theta_eq(self):
         print ("Equilibrium angle : ", np.degrees(theta), " deg")
     """
+    def set_discrete(self, delta):
+        """
+            Set/reset the probability array for the magnetic moment, depending on «delta».
+            delta need to be in degrees.
+            Need to be less than 1 deg for accuracy.
+        """
+        self.theta_step = np.radians(delta)     #minimal angle definition for theta
+        self.theta_n = 360 / delta      #default value. Change with set_discretization()
+        self.theta = np.arange(0, 2*np.pi, self.theta_step)
+        self.probM = np.zeros(self.theta_n)    #probability array of magnetization direction
+        #initialization of the array
+        self.probM[0] = 1
+
     def set_F(self, frac=None, M_f=None, K_f=None , gamma_f=None):
         """
             Function to modify the ferromagnetic layer parameters.
@@ -241,15 +252,12 @@ class Domain(object):
         if gamma_f is not None:
             self.gamma_f = np.radians(gamma_f)
 
-
-
     def set_T(self, T):
         if T < 0:
             print ("No way!!! Are you mad?\n Try again...")
         else:
             print ("New sample temperature : {0} K".format(T))
             self.T = T
-
 
     def apply(self, vsm):
         """
