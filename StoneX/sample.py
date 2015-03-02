@@ -154,6 +154,8 @@ class Domain(object):
         self.K_f = convert_field(2, 'si') * mu_0 * self.M_f / 2   #2 Oe uniaxial anisotropy
         self.gamma_f = 0.            #uniaxial anisotropy angle
 
+        self.K_iso = 0           #isotropic anisotropy
+
         self.K_bq = 0.           #biquadratic anisotropy
         self.gamma_bq = 0.       #bq ani. angle
 
@@ -288,23 +290,32 @@ class Domain(object):
         self.zeeman = lambda x: - mu_0 * vsm.H_field * self.V_f * self.M_f * np.cos(x + vsm.phi)
         self.exchange = lambda x: - self.J_ex * self.S * np.cos(x - self.alpha)
         self.uniaxial = lambda x: self.K_f * self.V_f * np.sin(x - self.gamma_f)**2
-        #self.biquadratic = lambda x: self.K_bq * self.V_f * np.sin(x - self.gamma_bq)**2 * np.cos(x - self.gamma_bq)**2
+        self.isotropic = lambda x: self.K_iso * self.V_f * np.sin(x + vsm.phi)**2
+        self.biquadratic = lambda x: self.K_bq * self.V_f * np.sin(x - self.gamma_bq)**2 * np.cos(x - self.gamma_bq)**2
         #self.uniaxialAF = self.K_af * self.V_af * sp.sin(y - self.gamma_af)**2         2 variable function
-        self.energy = lambda x: self.zeeman(x) + self.uniaxial(x) + self.exchange(x) #+ self.sym_biquadratic
+        self.energy = lambda x: self.zeeman(x) + self.uniaxial(x) + self.exchange(x) + self.isotropic(x) + self.biquadratic(x)
 
     def define_gradEnergy_functions(self, vsm):
         self.gradZeeman = lambda x: mu_0 * vsm.H_field * self.V_f * self.M_f * np.sin(x + vsm.phi)
         self.gradExchange = lambda x: self.J_ex * self.S * np.sin(x - self.alpha)
         self.gradUniaxial = lambda x: self.K_f * self.V_f * 2 * np.sin(x - self.gamma_f) * np.cos(x - self.gamma_f)
-        self.gradEnergy = lambda x: self.gradZeeman(x) + self.gradExchange(x) + self.gradUniaxial(x)
+        self.gradIsotropic = lambda x: self.K_iso * self.V_f * 2 * np.sin(x + vsm.phi) * np.cos(x + vsm.phi)
+        self.gradBiquadratic = lambda x: 2 * self.K_bq * self.V_f * np.sin(x - self.gamma_bq) * np.cos(x - self.gamma_bq) * np.cos(2 * (x - self.gamma_bq))
+        self.gradEnergy = lambda x: self.gradZeeman(x) + self.gradExchange(x) + self.gradUniaxial(x) + self.gradIsotropic(x) + self.gradBiquadratic(x)
 
     def define_ggradEnergy_functions(self, vsm):
         self.ggradZeeman = lambda x: mu_0 * vsm.H_field * self.V_f * self.M_f * np.cos(x + vsm.phi)
         self.ggradExchange = lambda x: self.J_ex * self.S * np.cos(x - self.alpha)
         self.ggradUniaxial = lambda x: self.K_f * self.V_f * 2 * ( -np.sin(x - self.gamma_f)**2 + np.cos(x - self.gamma_f)**2 )
-        self.ggradEnergy = lambda x: self.ggradZeeman(x) + self.ggradExchange(x) + self.ggradUniaxial(x)
+        self.ggradIsotropic = lambda x: self.K_iso * self.V_f * 2 * ( np.cos(x + vsm.phi)**2 - np.sin(x + vsm.phi)**2 )
+        self.ggradBiquadratic = lambda x: 2 * self.K_bq * self.V_f * ( np.cos(2 * (x - self.gamma_bq))**2 - np.sin(2 * (x - self.gamma_bq))**2 )
+        self.ggradEnergy = lambda x: self.ggradZeeman(x) + self.ggradExchange(x) + self.ggradUniaxial(x) + self.ggradIsotropic(x) + self.ggradBiquadratic(x)
 
 
+
+
+
+    # Deprecated energy functions
     def define_sym_energy_functions(self, vsm):
         #print "Updating sample's energy..."
         # Sympy symbolic functions.
