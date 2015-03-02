@@ -3,6 +3,7 @@
 
 #import os
 import math
+import sys
 import numpy as np
 #import pylab as pl
 #from scipy import optimize, integrate
@@ -520,6 +521,10 @@ class Franco_Conde(Model):
 
     # Main function
     def relax(self):
+        # Warning if T=0
+        if self.T == 0:
+            self.logger.error('T=0 incompatible with Franco-Conde model.')
+            sys.exit("End of Program.")
         # First, we need to know the energy extrema
         eqStates = self.search_eqStates()
         #print(np.degrees(eqStates[:,0]), "\n", eqStates[:,1:3])
