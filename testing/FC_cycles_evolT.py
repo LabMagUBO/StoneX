@@ -6,7 +6,7 @@
     StoneX V0.4 compatible
 """
 # Path to the module
-module_path = '/Users/zorg/These/Documents/Programmes/StoneX_Project/'
+module_path = '/Users/zorg/These/Documents/Programmes/Python_Modules/StoneX/'
 
 # Define module path
 import sys
