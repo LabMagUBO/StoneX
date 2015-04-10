@@ -6,7 +6,7 @@
     StoneX V0.4 compatible
 """
 # Path to the module
-module_path = '/Users/zorg/These/Documents/Programmes/Python_Modules/StoneX/'
+module_path = '/Users/zorg/These/Documents/Programmes/Python_Modules/'
 
 # Define module path
 import sys
@@ -42,7 +42,9 @@ logger.info("Etat du VSM : %s", vsm)
 ##########################
 # Available models : Stoner_2states, Garcia_Otero, Franco_Conde
 # Creating the sample
-mySample = load_class(Domain, Franco_Conde)
+mySample = load_class(Domain, Radu)
+
+sys.exit(0)
 
 # Settings
 mySample.set_discrete(0.5)

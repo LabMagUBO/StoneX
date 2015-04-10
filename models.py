@@ -841,3 +841,14 @@ class Franco_Conde_old(Model):
 
 class Carey_Respaud(Model):
     pass
+
+class Radu(Model):
+    """
+        Double macro-spin model.
+    """
+    def model(self):
+        self.model = 'Radu'
+        self.logger.warn("Radu model loaded.")
+
+    def relax(self):
+        pass

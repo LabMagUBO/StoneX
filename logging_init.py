@@ -27,29 +27,30 @@ def init_log(name, console_level='debug', file_level='info', log_file=main_file,
 
     # Deactivate default console output
     #logger.propagate = False
+    if not logger.handlers:
 
-    # Set the logger's level, to write everything
-    logger.setLevel(logging.DEBUG)
+        # Set the logger's level, to write everything
+        logger.setLevel(logging.DEBUG)
 
-    # Formatter
-    file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
-    console_formatter = logging.Formatter("%(levelname)s\t%(name)s - %(module)s.%(funcName)s \t-> %(message)s")
+        # Formatter
+        file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
+        console_formatter = logging.Formatter("%(levelname)s\t%(name)s - %(module)s.%(funcName)s \t-> %(message)s")
 
-    # Console handler, with its own level
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(set_level(console_level))
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
+        # Console handler, with its own level
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(set_level(console_level))
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
 
-    # Create a file handler (log file), with write mode, and applying the formatter.
-    # Append the handler to the logger
-    file_handler = logging.FileHandler(log_file + '.log', mode=mode)
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(set_level(file_level))
-    logger.addHandler(file_handler)
+        # Create a file handler (log file), with write mode, and applying the formatter.
+        # Append the handler to the logger
+        file_handler = logging.FileHandler(log_file + '.log', mode=mode)
+        file_handler.setFormatter(file_formatter)
+        file_handler.setLevel(set_level(file_level))
+        logger.addHandler(file_handler)
 
-    #Setting colors
-    set_colors()
+        #Setting colors
+        set_colors()
 
     return logger
 
