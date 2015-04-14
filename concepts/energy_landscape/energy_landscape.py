@@ -108,7 +108,7 @@ def search_eq(N_ini, E):
             print("egualité")
             # On regarde si on est pas déjà passé par là
             if k < 2:
-                break
+                continue
             elif (N_eq[k] == N_eq[k-2]).all():
                 print("already here")
                 print(E_ma)

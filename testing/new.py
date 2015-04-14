@@ -34,12 +34,14 @@ print(vsm)
 #sample = create_sample(Stoner_Wohlfarth)
 #sample = create_sample(Meiklejohn_Bean)
 #sample = create_sample(Garcia_Otero)
-sample = create_sample(Franco_Conde)
-#sample = create_sample(Rotatable_AF)
+#sample = create_sample(Franco_Conde)
+sample = create_sample(Rotatable_AF)
 
 # Set the sample parameters
 sample.theta = (1, 'deg')
-sample.T = 300
+sample.alpha = (1, 'deg')
+sample.J_ex = 0
+sample.T = 10
 
 print(sample)
 

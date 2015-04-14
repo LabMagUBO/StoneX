@@ -129,7 +129,7 @@ class VSM(object):
     def measure(self):
         self.sample.calculate_energy(self)
         self.sample.analyse_energy(self)
-        self.process_cycles()
+        #self.process_cycles()
 
     def process_cycles(self):
         """
@@ -208,8 +208,8 @@ class AntiFerro(Domain):
         super().__init__()
         self.logger.debug("Init. Class AntiFerro")
 
-        self.J_ex = 1
-        self.alpha = 0
+        self.gamma_af = 0
+        self.V_af = self.V * 0.9
 
     # No energy function.
 
@@ -219,10 +219,35 @@ class AntiFerro_rotatable(AntiFerro):
 
         self.logger.debug("Init. Class AntiFerro_rotatable")
 
+        print("setting alpha array")
+        self.alpha = (1, 'deg')
+        self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9) / 2 * 100 # K_f * 10
+
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, val):
+        """
+            alpha setter. Need a tuple as argument with three variables : step, unit
+        """
+        try:
+            step, unit = val
+        except ValueError:
+            raise ValueError("vsm.alpha => need the following tuple : (step, 'deg' or 'rad')")
+        else:
+            # If no exception
+            if unit == 'deg':
+                step = np.radians(step)
+            elif unit != 'rad':
+                self.logger.warn("alpha.setter : unknown «{0}» system, using 'rad' by default.".format(unit))
+
+            self._alpha = np.arange(0, 2*np.pi, step)
+
     def energy(self):
-        exchange = lambda x, y: x * 0.5 + y**2
-        uniaxial = lambda x, y: 0.1 * x + y*10
-        return lambda x, y: exchange(x, y) + uniaxial(x, y)
+        uniaxial = lambda alph: self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
+        return uniaxial
 
 
 class Stoner_Wohlfarth(Ferro):
@@ -323,10 +348,13 @@ class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro, Ferro):
         self.logger.debug("Creating model {}".format(self.model))
 
         self.S = (0.2*1e-9)**2
-        self.J_ex = 0#11e-3 * 1e-7 * 1e4             #J/m**2
+        self.J_ex = 11e-3 * 1e-7 * 1e4             #J/m**2
+        #print(self.alpha)
+        self.alphaui = 0
+        print("setting_alpha")
 
     def energy(self):
-        exchange = lambda th: - self.J_ex * self.S * np.cos(th - self.alpha)
+        exchange = lambda th: - self.J_ex * self.S * np.cos(th - self.gamma_af)
         return lambda phi, H, th: Ferro.energy(self)(phi, H, th) + exchange(th)
 
 
@@ -343,6 +371,10 @@ class Garcia_Otero(Meiklejohn_Bean):
         # Temperature
         self.T = 300     #K
 
+        ## Néel relaxation parameters
+        self.f0 = 10**9          #attempt frequency, in Hz
+        self.tau_mes = 100       #measurement mean time, in s
+
         self.logger.info("Model loaded : {}".format(self.model))
 
     # No need to define energy, same as Meiklejohn_Bean
@@ -356,7 +388,7 @@ class Garcia_Otero(Meiklejohn_Bean):
         ok = False      # Test result
         while not ok:
             # Masking all the values above energy state equilibrium
-            mask = self.E[phiIdx, HIdx, :] > self.E[phiIdx, HIdx, eqIdx] + 25 * k_B * self.T
+            mask = self.E[phiIdx, HIdx, :] > self.E[phiIdx, HIdx, eqIdx] + np.log(f0 * tau_mes) * k_B * self.T
 
             mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
 
@@ -448,13 +480,13 @@ class Garcia_Otero(Meiklejohn_Bean):
                 self.data[i, j] = np.array([H, self.theta[eq], Mt, Ml])
 
 
-            print(self.E.mask)
+
             if True:
                 pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 3], '-ro')
                 pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-go')
                 pl.grid()
                 pl.show()
-            if True:
+            if False:
                 fig = pl.figure()
                 ax = fig.add_subplot(111, aspect='equal')
 
@@ -491,6 +523,16 @@ class Franco_Conde(Garcia_Otero):
         # Probability array
         P = np.exp(- E / k_B / self.T)
 
+        # Partition function
+        Z = np.ma.sum(P)
+
+        # Testing if the sum is inf OR Z==0
+        if np.isinf(Z) or Z==0:
+            # Only one state is accessible
+            P[:] = 0
+            P[eqIdx] = 1
+            Z = 1
+
         # Calculating magnetization
         Ml = np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
         Mt = np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
@@ -498,19 +540,271 @@ class Franco_Conde(Garcia_Otero):
         return Mt, Ml
 
 
-class Rotatable_AF(AntiFerro_rotatable, Ferro):
+class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
     def __init__(self):
-        # Initiate all parents classes
+        # Initiating subclasses
         super().__init__()
 
+        self.logger.debug("Init. Class Rotatable_AF")
         # Naming the model
         self.model = "Rotatable_AF"
 
-        # Self parameters
-        self.T = 300
+        self.logger.info("Model loaded : {}".format(self.model))
 
-    def energy(self, vsm):
-        return lambda x, y: Ferro.energy(self, vsm)(x) + AntiFerro_rotatable.energy(self)(x, y)
+    # Redefining the energy function
+    def energy(self):
+        exchange = lambda th, alph: - self.J_ex * self.S * np.cos(th - alph)
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(th, alph)
+
+    # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
+    def calculate_energy(self, vsm):
+        """
+            Calculate the energy for each parameters' values given by the vsm.
+            The parameters are, in order : phi, H, alpha, theta
+        """
+
+        # sparse=True for saving memory
+        # indexing : place the element in the index order
+        Ph, Hf, Al, Th = np.meshgrid(vsm.phi, vsm.H, self.alpha, self.theta, sparse=True, indexing='ij')
+
+        # Creating a masked array. All values unmasked.
+        self.E = np.ma.array(self.energy()(Ph, Hf, Al, Th))
+
+    # Redefining from search_eq in Stoner_Wohlfarth
+    def search_eq(self, E, eq):
+        """
+            Search the equilibrium state «eq» depending on the initial state «ini» and the energy landscape «E».
+            eq is a two-value array [alpha_index, theta_index]
+            Return the index of equilibrium
+        """
+        # stopping criteria
+        found = False
+
+        # Overflow security
+        k = 0
+
+        # E dimension
+        nb = np.shape(E)
+
+        # Path of equilibrium
+        N_eq = np.zeros((1, 2))
+        N_eq[0] = eq
+
+        while not found:
+            k += 1
+
+            #Masking the array
+            E = np.ma.array(E)
+            E.mask = True
+
+            # Unmasking all the equilibrium neighbours states
+            #   1 1 1
+            #   1 0 1
+            #   1 1 1
+            for i in np.arange(-1, 2) + N_eq[k-1][0]:
+                for j in np.arange(-1, 2) + N_eq[k-1][1]:
+                    if i*j != 1:    #Not the center
+                        E.mask[i % nb[0], j % nb[1]] = False
+
+            # Append the minimal state to N_eq
+            minIdx = E.argmin()
+            N_eq = np.append(N_eq, [[np.floor(minIdx / nb[1]), minIdx % nb[1]]], axis=0)
+
+            # Comparing energy
+            barrier = E[N_eq[k][0], N_eq[k][1]] - E[N_eq[k-1][0], N_eq[k-1][1]]
+
+            if barrier < 0:
+                # Better state
+                # Nothing to do, continue the loop
+                continue
+            elif barrier == 0:
+                # Same energy state. Checking if we have already been there
+                if k < 2:
+                    continue
+                elif (N_eq[k] == N_eq[k-2]).all():
+                    # already been there
+                    # Stopping the loop
+                    break
+                else:
+                    continue
+            else:
+                # no better states
+                break
+
+            # If too much loop
+            if k == 1000:
+                self.logger.error("search_eq : Not converging.")
+                break
+
+        # No forgetting to unmask the array
+        E.mask = False
+        return N_eq[-1]
+
+    # Redefining from Garcia_Otero
+    def masking_energy(self, phiIdx, HIdx, eqIdx):
+        """
+            Method for masking all non-reachable states above the equilibrium.
+            After searching all the available states, return the new equilibrium position.
+            The non-reachable states are masqued in self.E
+        """
+        ok = False      # Test result
+
+        # Shape of E[phiIdx, HIdx]
+        nb = np.array([self.alpha.size, self.theta.size])
+
+        # Loop
+        while not ok:
+            # Masking all the values above energy state equilibrium
+            mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(f0 * tau_mes) * k_B * self.T
+
+            # Labeling the mask (0-> unreachable states ; 1,2,3, i..->ith zone)
+            mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
+
+            ## Searching equivalent zones (the array is periodic)
+            # First scanning alpha boundaries
+            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+            for i in np.arange(nb[0]):
+                left = mask_lab[i, 0]
+                right = mask_lab[i, -1]
+                if left and right and (left != right): #left and right not zero, and different labels
+                    zones_equiv.add(tuple((min(left, right), max(left, right))))
+
+            # Ordering the set
+            zones_equiv = np.sort(np.array(list(zones_equiv)), axis=0)
+
+            # Relabeling the upper label to the equivalent lower label
+            for i, val in enumerate(zones_equiv):
+                # Creating a mask with only the upper label
+                mask_rm = mask_lab == val[1]
+                #to replace all the zone by le lower label
+                mask_lab[mask_rm] = val[0]
+
+
+            # Then, scanning theta boundaries
+            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+            for i in np.arange(nb[1]):
+                left = mask_lab[0, i]
+                right = mask_lab[-1, i]
+                if left and right and (left != right): #left and right not zero, and different labels
+                    zones_equiv.add(tuple((min(left, right), max(left, right))))
+
+            # Ordering the set
+            zones_equiv = np.sort(np.array(list(zones_equiv)), axis=0)
+
+            # Relabeling the upper label to the equivalent lower label
+            for i, val in enumerate(zones_equiv):
+                # Creating a mask with only the upper label
+                mask_rm = mask_lab == val[1]
+                #to replace all the zone by le lower label
+                mask_lab[mask_rm] = val[0]
+
+            # Renaming the last labels (not useful)
+            #labels = np.unique(z_lab)
+            #z_lab = np.searchsorted(labels, z_lab)
+
+            #Zone where the equilibrium is
+            zone_eq = mask_lab[eqIdx[0], eqIdx[1]]
+            # Creating a new mask
+            new_mask = mask_lab != zone_eq
+
+            #Applying the mask
+            self.E[phiIdx, HIdx, new_mask] = np.ma.masked
+
+            # Searching the minimum
+            mini = np.ma.min(self.E[phiIdx, HIdx, :, :])
+            # If the minimum over the zone is the same that the eq energy
+            if mini == self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]]:
+                # finish the loop
+                ok = True
+            else:
+                # new equilibrium
+                self.logger.warn("old eq {}".format(eqIdx))
+                eqIdx = self.E[phiIdx, HIdx, :].argmin()
+                eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
+                self.logger.warn("new eq {}".format(eqIdx))
+
+        return eqIdx
+
+    # Redefining calculate_magnetization from Franco_Conde
+    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+        """
+            Calculate the magnetization, by integrating all the available states.
+            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Return Mt, Ml.
+        """
+        # Energy array
+        E = self.E[phiIdx, HIdx]
+
+        # Probability array
+        P = np.exp(- E / k_B / self.T)
+
+        # Partition function
+        Z = np.ma.sum(P)
+
+        # Testing if the sum is inf OR Z==0
+        if np.isinf(Z) or Z==0:
+            # Only one state is accessible
+            P[:] = 0
+            P[eqIdx[0], eqIdx[1]] = 1
+            Z = 1
+
+        # Calculating magnetization
+        Ml = np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
+        Mt = np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+
+        return Mt, Ml
+
+    # Redefining analyse_energy from Garcia_Otero
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta, alpha]]
+        """
+        # Array containing all the data. Indexes : (phi, H, [H, Mt, Ml, theta_eq, alpha_eq])
+        self.data = np.zeros((vsm.phi.size, vsm.H.size, 5))
+
+        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+        eq = np.argmin(self.E[0, 0])
+        thIdx = eq % self.theta.size
+        alphIdx = np.floor(eq / self.alpha.size)
+        eq = np.array([alphIdx, thIdx])
+
+        # Loop over phi
+        for i, phi in enumerate(vsm.phi):
+            #self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                # A little verbose
+                self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+
+                # Adjusting equilibrium
+                eq = self.search_eq(self.E[i, j], eq)
+
+                # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
+                eq = self.masking_energy(i, j, eq)
+
+                # Calculating the magnetization
+                Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+
+                # Storing the results
+                self.data[i, j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
+
+                if False:
+                    fig = pl.figure()
+                    ax = fig.add_subplot(111, aspect='equal')
+
+                    cax = ax.imshow(self.E[i, j], interpolation = 'nearest', origin='upper')
+                    cbar = fig.colorbar(cax)
+
+                    pl.show()
+
+            if True:
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-ro')
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 1], '-go')
+                pl.grid()
+                pl.show()
+
 
 
 def create_sample(model):
