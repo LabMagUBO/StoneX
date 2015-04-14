@@ -22,21 +22,28 @@ logger = logging_init.init_log(__name__, console_level='debug', file_level='info
 logger.info("Nouvelle version")
 
 
-# Fist, lets create the VSM
+# First, lets create the VSM
 vsm = VSM()
 
-# VSM settings
-vsm.H_field = 10
+# Set the vsm parameters
+vsm.H = (5, 0.1, 'cgs')
+vsm.phi = (10, 50, 50, 'deg')
+print(vsm)
 
 # Then the sample
 #sample = create_sample(Stoner_Wohlfarth)
 #sample = create_sample(Meiklejohn_Bean)
-sample = create_sample(Rotatable_AF)
+#sample = create_sample(Garcia_Otero)
+sample = create_sample(Franco_Conde)
+#sample = create_sample(Rotatable_AF)
+
+# Set the sample parameters
+sample.theta = (1, 'deg')
+sample.T = 300
+
+print(sample)
 
 # Loading the sample into the VSM
 vsm.load(sample)
 
-
-
-
-print(vsm.measure())
+vsm.measure()
