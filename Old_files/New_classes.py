@@ -14,10 +14,10 @@ from matplotlib import pylab as pl
 
 # My own modules
 #from constants import *
-from StoneX.functions import *
+from StoneX.Physics import *
 from StoneX.logging_init import *
 #from StoneX.models import *
-from StoneX.constants import *
+#from StoneX.constants import *
 
 
 # Domain class
@@ -657,7 +657,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             # No forgetting to unmask the array
             self.E[phiIdx, HIdx, :, :].mask = False
 
-            if True:
+            if False:
                 #print("eqIdx", eqIdx[0], eqIdx[1])
                 #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
                 fig = pl.figure()
@@ -674,7 +674,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
 
 
             # Masking all the values above energy state equilibrium
-            mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(f0 * tau_mes) * k_B * self.T
+            mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(self.f0 * self.tau_mes) * k_B * self.T
 
             # Labeling the mask (0-> unreachable states ; 1,2,3, i..->ith zone)
             mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
@@ -741,7 +741,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
                 self.logger.warn("new eq {}".format(eqIdx))
 
-            if True:
+            if False:
                 #print("eqIdx", eqIdx[0], eqIdx[1])
                 #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
                 fig = pl.figure()

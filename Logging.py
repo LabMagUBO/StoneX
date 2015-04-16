@@ -1,7 +1,28 @@
+#!/opt/local/bin/python-3.4.3
+# -*- coding: utf-8 -*-
+"""
+    Define logger object.
+    Used to display and export logs.
+
+    For creating a logger :
+        logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
+
+    Then,
+        logger.info("Info level")
+        logger.debug("Debug level")
+        logger.warn("Warning level")
+        logger.error("Error level")
+        logger.critical("Critical level")
+"""
+
+# Logging module
 import logging
-from StoneX.constants import *
 
+# Recording the file name of the main script
+import __main__ as main
+main_file = main.__file__
 
+## Methods
 def set_colors():
     """
         Define the colors in the console.

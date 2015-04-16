@@ -1,854 +1,627 @@
-#!/opt/local/bin/ipython-2.7
+#!/opt/local/bin/python-3.4.3
 # -*- coding: utf-8 -*-
+"""
+    Models Class.
 
-#import os
-import math
+    Attributes :
+
+
+    Properties :
+
+    Methods :
+
+"""
+
+# General modules
 import sys
 import numpy as np
-#import pylab as pl
-#from scipy import optimize, integrate
+#import sympy as sp
+import scipy.ndimage as nd
+#from sympy.abc import x
+from matplotlib import pylab as pl
 
-from StoneX.constants import *
-#from classes import *
-from StoneX.functions import *
-from scipy import optimize, integrate
+# My own modules
+#from constants import *
+from StoneX.Physics import *
+from StoneX.Logging import *
+from StoneX.Sample import *
+#from StoneX.models import *
+#from StoneX.constants import *
 
-import logging
 
-#####################
-# Model classes
-#####################
 
-## General functions
-class Model(object):
-    """
-        Principal class Model.
-        Methods:
-            — search_eqStates
-            — find_0KIndex
-            — find_barrier
 
-        Inherited classes:
-            — Stoner_conv
-            — Stoner_2states
-            — Franco_Conde
-            — Carey_Respaud
+class Stoner_Wohlfarth(Ferro):
+    def __init__(self):
+        super().__init__()
 
-        General method for inherited classes:
-            — relax (previous: calculate_magnetization)
-    """
-    def search_eqStates(self):
-        """ Method searching all the equilibrium states at 0K, stable, metastable and instable.
-            It returns a (n,3) shape array, n being the index of equilibrium, with :
-                eqStates[n, 0] => theta position (in degrees)
-                eqStates[n, 1] => energy value
-                eqStates[n, 2] => True if stable, False if not
+        self.logger.debug("Init. Class Stoner_Wohlfarth")
+        # Naming the model
+        self.model = "Stoner_Wohlfarth"
 
-            The search function is using optimize.brentq to find the exact root of the energy derivative (not needed). The nearest discrete theta position is then recorded.
+        # Initiating subclasses
 
-            Before searching the equilibrium states, the energy MUST be updated.
+        self.logger.info("Model loaded : {}".format(self.model))
 
-            Parameters :
-                — nb[512]: number of points to evaluate the energy function
-                — extend[0.1 deg]
+    # No need to define energy
+
+    def calculate_energy(self, vsm):
+        """
+            Calculate the energy for each parameters' values given by the vsm.
+            The parameters are, in order : phi, H, theta
         """
 
-        # Parameters
+        # sparse=True for saving memory
+        # indexing : place the element in the index order
+        Ph, Hf, Th = np.meshgrid(vsm.phi, vsm.H, self.theta, sparse=True, indexing='ij')
 
-        #nb = 512    # number of points to evaluate the function
-        #extend = np.radians(0.1)
-        #th = np.radians(np.linspace(0, 360, nb))    # theta vector
+        # Creating a masked array. All values unmasked.
+        self.E = np.ma.array(self.energy()(Ph, Hf, Th))
 
-        zeros = np.array([], dtype=float)       #Init the array which will contain the zeros of the gradEnergy
-
-        # Check if there is an equilibrium between the edges
-        if (self.gradEnergy(self.theta[0]) * self.gradEnergy(self.theta[-1] - 2 * np.pi)) <= 0:
-            eq = optimize.brentq(self.gradEnergy, self.theta[-1] - 2 * np.pi, self.theta[0])
-            zeros = np.append(zeros, eq)
-
-
-        # Iterate on theta[i]
-        for i, val in enumerate(self.theta[:-1]):
-            if ( self.gradEnergy(val) * self.gradEnergy(self.theta[i+1]) <= 0 ):
-                eq = optimize.brentq(self.gradEnergy, self.theta[i], self.theta[i+1])
-
-                # If grad(theta[i+1]) = 0, eq will be registered twice
-                # Test if the array is not empty first, then if the zero is not the same than the last one
-                if  len(zeros) == 0 or zeros[-1] != eq:
-                    zeros = np.append(zeros, eq)
-
-        # Placing all the zeros between 0 and 2π, and ordering
-        zeros = np.sort(zeros % (2 * np.pi))
-
-
-        # Creation of the table (theta_eq, Energy, isStable)
-        eqStates = np.zeros((0,3))
-        mem_val = None
-        for i, val in enumerate(zeros):
-            if (val != mem_val):
-                new_line = np.array([[val, self.energy(val), self.ggradEnergy(val) > 0]])
-                eqStates = np.concatenate((eqStates, new_line), axis=0)
-                mem_val = val
-
-        # Test the number of equilibrium (in case)
-        if ((len(eqStates) % 2) != 0 ) or (len(eqStates) == 0): print("ERREUR search_eqStates : nb d'état impair ou nul.")
-
-        if np.min(eqStates[:,0]) < 0:
-            print("minimum", eqStates[:,0], np.min(eqStates))
-        return eqStates
-
-    def search_eqStates_manual(self):
-        """ Method searching all the equilibrium states at 0K, stable, metastable and instable.
-            It returns a (n,3) shape array, n being the index of equilibrium, with :
-                eqStates[n, 0] => theta position (in degrees)
-                eqStates[n, 1] => energy value
-                eqStates[n, 2] => True if stable, False if not
-
-            The search function is using optimize.brentq to find the exact root of the energy derivative (not needed). The nearest discrete theta position is then recorded.
-
-            Before searching the equilibrium states, the energy MUST be updated.
-
-            Parameters :
-                — nb[512]: number of points to evaluate the energy function
-                — extend[0.1 deg]
+    def search_eq(self, E, eq):
         """
-
-        #Init. the array which will contain the zeros of the gradEnergy
-        zeros = np.array([], dtype=float)
-
-        # Check if there is an equilibrium between the edges
-        gradEnergy_theta = self.gradEnergy(self.theta)
-        #if (self.gradEnergy(self.theta[0]) * self.gradEnergy(self.theta[-1] - 2 * np.pi)) <= 0:
-        if (gradEnergy_theta[0] * gradEnergy_theta[-1]) <= 0:
-            #eq = optimize.brentq(self.gradEnergy, self.theta[-1] - 2 * np.pi, self.theta[0])
-            eq = 0
-            zeros = np.append(zeros, eq)
-
-
-        # Iterate on theta[i]
-        for i, val in enumerate(self.theta[:-1]):
-            if ( (gradEnergy_theta[i] * gradEnergy_theta[i+1]) <= 0 ):
-                #eq = optimize.brentq(self.gradEnergy, self.theta[i], self.theta[i+1])
-                eq = val
-
-                # If grad(theta[i+1]) = 0, eq will be registered twice
-                # Test if the array is not empty first, then if the zero is not the same than the last one
-                if  len(zeros) == 0 or zeros[-1] != eq:
-                    zeros = np.append(zeros, eq)
-
-        # Placing all the zeros between 0 and 2π, and ordering
-        zeros = np.sort(zeros % (2 * np.pi))
-
-
-        # Creation of the table (theta_eq, Energy, isStable)
-        eqStates = np.zeros((0,3))
-        mem_val = None
-        for i, val in enumerate(zeros):
-            if (val != mem_val):
-                new_line = np.array([[val, self.energy(val), self.ggradEnergy(val) > 0]])
-                eqStates = np.concatenate((eqStates, new_line), axis=0)
-                mem_val = val
-
-        # Test the number of equilibrium (in case)
-        if ((len(eqStates) % 2) != 0 ) or (len(eqStates) == 0): print("ERREUR search_eqStates : nb d'état impair ou nul.")
-
-        if np.min(eqStates[:,0]) < 0:
-            print("minimum", eqStates[:,0], np.min(eqStates))
-        return eqStates
-
-    def find_0KIndex(self, eqStates):
+            Search the equilibrium state «eq» depending on the initial state «ini» and the energy landscape «E».
+            Return the index of equilibrium
         """
-            Using the eqStates, calculate in which wheel the moment is, starting with the more probable position as equilibrium.
-            It returns the new equilibrium index (0K model).
-            Very similar to find_barrier().
-        """
-        #Finding the magnetization position : maximum of the probability fonction
-        theta_eq = self.theta[np.argmax(self.probM)]
+        # stopping criteria
+        found = False
 
-        for i, val in enumerate(eqStates):
-            # we find between which boundaries the magnetization is
-            # knowing the equilibrium are altmost alternatively stable/unstable
-            # (still need to take into account this possibility)
-            if (theta_eq <= val[0]):
-                # which state is stable?
-                if val[2]:
-                    idx = i
-                else:
-                    idx = i-1
-                break
-            elif (i == len(eqStates)-1):  # equilibrium position around 360deg
-                if val[2]:
-                    idx = i
-                else:
-                    idx = 0
-        # Return the index
-        #return eqStates[idx, 0]
-        return idx
+        # Overflow security
+        k = 0
 
-    def find_barrier(self, eqStates, idx):
-        """
-            Find the smallest barrier the magnization had to overcome, from the list of equilibrium position given by self.search_eqStates(), and the starting position.
-            Return:     array(barrierValue, direction)
-                — barrierValue: energy of the barrier
-                — direction : 1 or -1, right or left barrier
-        """
+        while not found:
+            k += 1
 
-        # Starting from idx, we search the minimal barrier around it
-        tab_eqStates = np.append(eqStates, eqStates)
-        leftBarrier = eqStates[(idx-1) % len(eqStates), 1] - eqStates[(idx) % len(eqStates), 1]
-        rightBarrier = eqStates[(idx+1) % len(eqStates), 1] - eqStates[(idx) % len(eqStates), 1]
-        if leftBarrier <= rightBarrier:
-            # M may go to the left
-            #print "May go to left"
-            return leftBarrier, -1
-        else:
-            # M may go to the right
-            #print "May go to right"
-            return rightBarrier, 1
+            barrier = np.array([E[ (eq - 1) % E.size] - E[eq], E[ (eq + 1) % E.size] - E[eq]])
 
-## Stoner-Wolffart
-class Stoner_conv(Model):
-    """
-        TO BE UPDATED
-        Define the Stoner-Wohlfarth model (0K model), using the optimize.fmin_bfgs module.
-    """
-    def relax(self):
-        if self.T != 0:
-            print ("Warning : the Stoner model is a 0K model. The temperature will not be taken into account.")
-        self.theta_eq =  self.search_eq()
-        self.M_l = self.M_f * np.cos(self.theta_eq)
-        self.M_t = self.M_f * np.sin(self.theta_eq)
-
-
-    def search_eq(self, theta_error=1e-4):
-        """ Function searching the 0K equilibrium from the current position of the magnetization.
-            Usage : sample.search_eq()
-            Output : the scalar equilibrium angle of the magnetization, in radians
-        """
-        #print np.degrees(self.theta_eq)
-        # First optizimation (it should be enough)
-        # Optimization of the volumic energy, the total energy having a too small value
-        result_optimize = optimize.fmin_bfgs(lambda x: self.energy(x) / (self.V_f + self.V_af) , self.theta_eq+theta_error, disp=False, full_output=True)
-        # In case of error (instable equilibrium)
-        while result_optimize[-1] != 0:
-            print ("Warning : nouvelle optimisation de l'équilibre")
-            result_optimize = optimize.fmin_bfgs(lambda x: self.energy(x) / (self.V_f + self.V_af), result_optimize[0], disp=False, full_output=True)
-            #print np.degrees(result_optimize[0])
-        eq = result_optimize[0]
-        #print np.degrees(eq)
-        eq = eq % (2*np.pi)
-        #print np.degrees(eq)
-
-        return eq[0]
-
-class Stoner_2states(Model):
-    """
-        Stoner-Wohlfarth model with manual calculation of the energy barrier (2 states).
-    """
-    def model(self):
-        self.model = 'Stoner-Wohlfarth'
-        self.logger.warn("Stoner-Wohlfarth  model loaded.")
-
-    def relax(self):
-        """
-            Find the new equilibrium position, depending on the new energy function.
-            New function, replacing self.calculate_magnetization()
-        """
-
-        # First, we search all the equilibrium position
-        eqStates = self.search_eqStates_manual()
-
-        # Reading the new equilibrium well
-        theta_eq = eqStates[ self.find_0KIndex(eqStates), 0]
-
-        #Clean the probability position array
-        self.probM = np.zeros(self.theta_n)
-        #The update it
-        self.probM[theta_eq / 2 / np.pi * self.theta_n] = 1
-
-
-## Garcia-Otero
-class Garcia_Otero(Model):
-    """
-        Garcia-Otero model
-        À compléter
-    """
-    def model(self):
-        self.model = 'Garcia-Otero'
-        self.logger.warn("Garcia-Otero model loaded.")
-
-    ### Main function ####
-    def relax(self):
-        """ Find the equilibrium position, depending on the temperature."""
-
-        # Search all the equilibrium positions
-        eqStates = self.search_eqStates()
-
-        # Search the actual position inside eqStates
-        actual_idx = self.find_0KIndex(eqStates)
-
-        # Find the smallest next barrier, and the position where M could go, starting from the actual position (actual_idx)
-        barrier, go_to = self.find_barrier(eqStates, actual_idx)
-
-        # If the thermal energy overcome the barrier
-        while k_B * self.T * np.log(f0 * tau_mes) >= barrier :
-            # We check if the next equilibrium is energetically better
-            next_idx = (actual_idx + go_to * 2) % len(eqStates)
-            # If the energy state behind the barrier is lower
-            if eqStates[next_idx, 1] < eqStates[actual_idx, 1]:
-                # the magnetization moves to the next equilibrium
-                actual_idx = next_idx
-                # searching the smallest barrier, using the new index
-                barrier, go_to = self.find_barrier(eqStates, actual_idx)
+            if (barrier >= 0).all():
+                # local minimum
+                found = True
+            elif barrier[0] == barrier[1]:
+                self.logger.warn("Symmetrical unstable equilibrium. Choosing next largeur index (theta[idx+1]).")
+                eq = (eq + 1) % E.size
             else:
-                # we stay and update the position
+                idx = np.argmin(barrier)
+                eq = (eq + idx * 2 - 1) % E.size
+
+            if k == 1000:
+                self.logger.error("search_eq : Not converging.")
                 break
 
-        # Equilibrium angle depending on the index
-        theta_eq = eqStates[actual_idx, 0]
+        return eq
 
-        #Clean the probability position array
-        self.probM = np.zeros(self.theta_n)
-        #Then update it
-        self.probM[theta_eq / 2 / np.pi * self.theta_n] = 1
-
-
-## Franco-Conde
-class Franco_Conde(Model):
-    """ Franco & Conde model"""
-    def model(self):
-        self.model = 'Franco-Conde'
-        self.logger.warn("Franco-Conde model loaded.")
-
-    def check_newWheel(self, eqStates, pre_index):
+    def analyse_energy(self, vsm):
         """
-            Return the new wheel index, using the different energy wheels and the temperature.
+            After calculating the energy depending on the parameters, search in which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
         """
-        global k_B, tau_mes, f0
+
+        # Array containing all the data. Indexes : (phi, H, [H, theta_eq, Mt, Ml])
+        self.data = np.zeros((vsm.phi.size, vsm.H.size, 4))
+
+        # Index to access E(H) (Hmax -> Hmin -> Hmax)
+        #Hindex = np.append(np.arange(vsm.H.size)[::-1], np.arange(vsm.H.size)[1:])
+
+        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+        eq = np.argmin(self.E[0, 0])
+
+        # Loop over phi
+        for i, phi in enumerate(vsm.phi):
+            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+
+                eq = self.search_eq(self.E[i, j, :], eq)
+
+                self.data[i, j] = np.array([H, self.theta[eq], self.Ms * np.sin(self.theta[eq] - phi), self.Ms * np.cos(self.theta[eq] - phi)])
+
+            pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 3], '-ro')
+            pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-go')
+            pl.show()
 
 
-        # Thermal energy :
-        T_sunami = k_B * self.T * np.log(f0 * tau_mes)
+class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro, Ferro):
+    def __init__(self):
+        super().__init__()
+        self.model = "Meiklejohn_Bean"
+        self.logger.debug("Creating model {}".format(self.model))
 
-        # High temperature limit
-        if T_sunami >= (np.amax(eqStates[:,1]) - np.amin(eqStates[:, 1])):
-            # Return the index of the minimum energy equilibrium
-            print("High temp")
-            return np.argmin(eqStates[:,1])
+        self.S = (200e-9)**2
+        self.J_ex = 11e-3 * 1e-7 * 1e4             #J/m**2
 
-        ## Intermediate or low temperature limit
-        # Relative index of the right and left accessible barrier
-        #sens = 1
-        right_relInd_barrier = 1
-        left_relInd_barrier = -1
+        print("setting_alpha")
 
-        # searching loop
-        while True:
-            left_barrier = eqStates[(pre_index + left_relInd_barrier) % len(eqStates), 1] - eqStates[pre_index, 1]
-            right_barrier = eqStates[(pre_index + right_relInd_barrier) % len(eqStates), 1] - eqStates[pre_index, 1]
+    def energy(self):
+        exchange = lambda th: - self.J_ex * self.S * np.cos(th - self.gamma_af)
+        return lambda phi, H, th: Ferro.energy(self)(phi, H, th) + exchange(th)
 
-            # if both barrier are too high
-            if T_sunami < min(left_barrier, right_barrier):
-                #nothing to do
-                new_index = pre_index
-                return new_index
 
+class Garcia_Otero(Meiklejohn_Bean):
+    def __init__(self):
+        # Initiating subclasses
+        super().__init__()
+
+        self.logger.debug("Init. Class Garcia_Otero")
+        # Naming the model
+        self.model = "Garcia_Otero"
+
+        ## Additionnal parameters
+        # Temperature
+        self.T = 300     #K
+
+        ## Néel relaxation parameters
+        self.f0 = 10**9          #attempt frequency, in Hz
+        self.tau_mes = 100       #measurement mean time, in s
+
+        self.logger.info("Model loaded : {}".format(self.model))
+
+    # No need to define energy, same as Meiklejohn_Bean
+
+    def masking_energy(self, phiIdx, HIdx, eqIdx):
+        """
+            Method for masking all non-reachable states above the equilibrium.
+            After searching all the available states, return the new equilibrium position.
+            The non-reachable states are masqued in self.E
+        """
+        ok = False      # Test result
+        while not ok:
+            # Masking all the values above energy state equilibrium
+            mask = self.E[phiIdx, HIdx, :] > self.E[phiIdx, HIdx, eqIdx] + np.log(self.f0 * self.tau_mes) * k_B * self.T
+
+            mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
+
+            left = mask_lab[0]
+            right = mask_lab[-1]
+            # if the two extrem are reachable
+            if left and right and (left != right):
+                #replacement mask
+                mask_replace = mask_lab == left
+                mask_lab[mask_replace] = right
+
+                # relabelling the mask
+                labels = np.unique(mask_lab)
+                mask_lab = np.searchsorted(labels, mask_lab)
+
+            #Zone where the equilibrium is
+            zone_eq = mask_lab[eqIdx]
+            # Creating a new mask
+            new_mask = mask_lab != zone_eq
+
+            #Applying the mask
+            self.E[phiIdx, HIdx, new_mask] = np.ma.masked
+
+            # Searching the minimum
+            mini = np.ma.min(self.E[phiIdx, HIdx, :])
+            # If the minimum over the zone is the same that the eq energy
+            if mini == self.E[phiIdx, HIdx, eqIdx]:
+                # finish the loop
+                ok = True
             else:
-                # which direction for the weakest barrier
-                if left_barrier < right_barrier:
-                    sens = 1
-                    dTo_eq = left_relInd_barrier      # distance to the next eq in the left direction
-                else:
-                    sens = -1
-                    dTo_eq = right_relInd_barrier    # distance to the next eq in the right direction
+                # new equilibrium
+                self.logger.warn("old eq {}".format(eqIdx))
+                eqIdx = self.E[phiIdx, HIdx, :].argmin()
+                self.logger.warn("new eq {}".format(eqIdx))
 
-                # If the next equilibrium is lower
-                if (eqStates[ (pre_index + sens + dTo_eq) % len(eqStates), 1] - eqStates[pre_index, 1]) < 0:
-                    # change of equilibrium
-                    pre_index += sens + dTo_eq
-                    # reset the energy barrier relative index
-                    right_relInd_barrier = 1
-                    left_relInd_barrier = -1
 
-                    # redo the loop
-                else:
-                    # Update the energy barrier
-                    if sens == 1:
-                        right_relInd_barrier = (right_relInd_barrier + 2)
-                    else:
-                        left_relInd_barrier = (left_relInd_barrier - 2)
 
-
-            if (right_relInd_barrier % len(eqStates)) == (left_relInd_barrier % len(eqStates)):
-                return np.argmin(eqStates[:,1])
-
-    def find_allowedStates(self, eqStates, new_index):
-        """
-            Return a list of available states domains.
-        """
-        # Thermal energy
-        T_sunami = k_B * self.T * np.log(f0 * tau_mes)
-
-        # Determine if the high temperature limit is reached
-        X = np.linspace(0, 2*np.pi, 256)
-        max_energy_theta, = optimize.fmin(lambda x: -self.energy(x), np.argmax(self.energy(X)), disp=False)
-
-        if self.energy(max_energy_theta) <= eqStates[new_index, 1] + T_sunami:
-            # high temperature limit
-            return np.array([[0, 2*np.pi]])
-
-        # adding the 2π boundary to the eqStates
-        eqStates = np.append(eqStates, [[np.pi * 2, self.energy(np.pi * 2), False]], axis=0)
-        #print np.degrees(eqStates[:, 0])
-        #domains = np.zeros(len(eqStates) + 2, dtype=float)
-        #domains = np.array([[0., 0.]], dtype=float)
-        domains = np.array([0.], dtype=float)
-        # Energy maximum
-        E_max = eqStates[new_index, 1] + T_sunami
-
-        # Temperature relative energy function
-        f = lambda x: self.energy(x) - E_max
-
-        #print 'eq ', np.degrees(eqStates[:,0])
-
-        #Indexes
-        j = 0
-        i = 0
-        while i < len(eqStates):
-            #test if the thermal energy is in between the domain range
-            # if higher
-            if ( (f(domains[j]) > 0) and (f(eqStates[i,0]) > 0) ) :
-                #print "higher", i
-                # the domain is not reachable
-                # if stable
-                if eqStates[i, 2]:
-                    # set the boundary to the next unstable position, which can only be higher
-                    if (i + 1) < len(eqStates):
-                        domains[j] = eqStates[i+1, 0]
-                    else:
-                        domains[j] = 2*np.pi
-                    i += 1
-                else:
-                    # go to the next domain
-                    domains[j] = eqStates[i, 0]
-                #print np.degrees(domains)
-            #if lower
-            elif ( (f(domains[j]) < 0) and (f(eqStates[i,0]) < 0) ):
-                # do nothing, domains[j] can still be reached
-                # except if we are at the end
-                if i == len(eqStates) - 1:
-                    domains = np.append(domains, [2*np.pi])
-                #print "lower", i
-                #print np.degrees(domains)
-
-            else:
-                # not lower, so in between
-                #searching the zero
-                #print "in between", i
-                zero = optimize.brentq(f, domains[j], eqStates[i, 0])
-
-                #if stable
-                if eqStates[i, 2]:
-                    #the zero correspond to the left boundary
-                    domains[j] = zero
-                    domains = np.append(domains, [eqStates[i, 0], eqStates[i, 0]])
-
-                elif (eqStates[i,0] == 2*np.pi) and (f(eqStates[i, 0]) < 0):
-                    #case if the right boundary is 360 degrees and reachable
-                    # the zero became the left boundary domain, and 360 the right one
-                    domains[j] = zero
-                    domains = np.append(domains, [eqStates[i, 0]])
-
-                elif (eqStates[i,0] == 2*np.pi) and (f(eqStates[i, 0]) > 0):
-                    #case if the right boundary is 360 degrees and non reachable
-                    # the zero became the right boundary domain
-                    domains = np.append(domains, [ zero])
-                else:
-                    # closing the right boundary of the current domain and adding the next one
-                    domains = np.append(domains, [ zero, eqStates[i, 0]])
-                #print np.degrees(domains)
-
-
-            j = len(domains) - 1
-            i += 1
-        #print np.degrees(domains)
-
-        # Joining the domains
-        i = 0
-        while i < len(domains)-1:
-            if domains[i] == domains[i+1]:
-                domains = np.delete(domains, [i, i+1])
-                i = 0
-
-            i += 1
-
-
-
-        # Taking out the extra bound, if odd number and 2*pi boundary
-        if (len(domains) % 2 == 1) and domains[-1] == 2*np.pi:
-            domains = np.delete(domains, len(domains)-1)
-        elif len(domains) % 2 == 1:
-            print ("Erreur programmation, nombre de domaine impair. Un cas n'est pas pris en compte.")
-
-        #Reshaping
-        domains = domains.reshape(len(domains)/2, 2)
-        #print (np.degrees(domains))
-
-        # Determine in which domain the magnetization is
-        mask = np.zeros(len(domains), dtype=bool)
-
-        for i in np.arange(len(domains)):
-            # if inside the boundary, make it true, else false
-            if (eqStates[new_index, 0] <= domains[i,1]) and (eqStates[new_index, 0] >= domains[i,0]):
-                mask[i] = True
-            else:
-                mask[i] = False
-        #print mask, (mask[0] + mask[-1]), domains[-1,1] % (2*np.pi)
-        #if the left and right boundary are joined ([0,x] and [y, 2π]), and one is reachable, make the other reachable
-        if (domains[-1,1] % (2*np.pi) == domains[0,0]) and ((mask[0] + mask[-1]) == True):
-            mask[0] = True
-            mask[-1] = True
-
-
-        return domains[mask]
-
-    def is_inside(self, angle, domains):
-        for boundaries in domains:
-            if (angle <= boundaries[1]) and (angle >= boundaries[0]):
-                return True
-        return False
-
-
-    # Main function
-    def relax(self):
-        # Warning if T=0
-        if self.T == 0:
-            self.logger.error('T=0 incompatible with Franco-Conde model.')
-            sys.exit("End of Program.")
-        # First, we need to know the energy extrema
-        eqStates = self.search_eqStates()
-        #print(np.degrees(eqStates[:,0]), "\n", eqStates[:,1:3])
-        # Find the starting range
-        pre_index = self.find_0KIndex(eqStates)
-        #print(pre_index)
-        pre_theta = eqStates[pre_index, 0]
-        #print(np.degrees(pre_theta))
-
-        # Determine if the position changes with temperature
-        new_index = self.check_newWheel(eqStates, pre_index)
-        #print(new_index)
-
-        # updating the theta
-        #self.theta_eq = eqStates[new_index, 0]
-
-        # Prévoir température nulle
-
-        # Search the states which can be reached
-        domains = self.find_allowedStates(eqStates, new_index)
-
-
-        #print ("domains", np.degrees(domains))
-
-        ## Now we redefine the magnetization probability array «probM».
-        ## The probability is null outside domains, and depends on Boltzman inside
-        # Maxwell-Boltzmann function probability (unnormed and without exp to be able to calculate exp(x>700))
-        P = lambda x: - self.energy(x) / k_B / self.T
-        # Loop on probM elements
-        for i, angle in enumerate(self.theta):
-            if self.is_inside(angle, domains):
-                self.probM[i] = P(angle)
-            else:
-                self.probM[i] = -float("inf")
-
-        # Applying the exponential to the shifted energy ratio (E/kT)
-        self.probM = np.exp(self.probM - np.max(self.probM))
-
-        # Norming probM
-        self.probM = self.probM / np.sum(self.probM)
-
-
-## Franco-Conde
-class Franco_Conde_old(Model):
-    """ Franco & Conde model"""
-
-    def check_newWheel(self, eqStates, pre_index):
-        """
-            Return the new wheel index, using the different energy wheels and the temperature.
-        """
-        global k_B, tau_mes, f0
-
-        # Thermal energy :
-        T_sunami = k_B * self.T * np.log(f0 * tau_mes)
-
-        # High temperature limit
-        if T_sunami >= (np.amax(eqStates[:,1]) - np.amin(eqStates[:, 1])):
-            # Return the index of the minimum energy equilibrium
-            print("High temp")
-            return np.argmin(eqStates[:,1])
-
-        ## Intermediate or low temperature limit
-        # Relative index of the right and left accessible barrier
-        #sens = 1
-        right_relInd_barrier = 1
-        left_relInd_barrier = -1
-
-        # searching loop
-        while True:
-            left_barrier = eqStates[(pre_index + left_relInd_barrier) % len(eqStates), 1] - eqStates[pre_index, 1]
-            right_barrier = eqStates[(pre_index + right_relInd_barrier) % len(eqStates), 1] - eqStates[pre_index, 1]
-
-            # if both barrier are too high
-            if T_sunami < min(left_barrier, right_barrier):
-                #nothing to do
-                new_index = pre_index
-                return new_index
-
-            else:
-                # which direction for the weakest barrier
-                if left_barrier < right_barrier:
-                    sens = 1
-                    dTo_eq = left_relInd_barrier      # distance to the next eq in the left direction
-                else:
-                    sens = -1
-                    dTo_eq = right_relInd_barrier    # distance to the next eq in the right direction
-
-                # If the next equilibrium is lower
-                if (eqStates[ (pre_index + sens + dTo_eq) % len(eqStates), 1] - eqStates[pre_index, 1]) < 0:
-                    # change of equilibrium
-                    pre_index += sens + dTo_eq
-                    # reset the energy barrier relative index
-                    right_relInd_barrier = 1
-                    left_relInd_barrier = -1
-
-                    # redo the loop
-                else:
-                    # Update the energy barrier
-                    if sens == 1:
-                        right_relInd_barrier = (right_relInd_barrier + 2)
-                    else:
-                        left_relInd_barrier = (left_relInd_barrier - 2)
-
-
-            if (right_relInd_barrier % len(eqStates)) == (left_relInd_barrier % len(eqStates)):
-                return np.argmin(eqStates[:,1])
-
-
-    def find_allowedStates(self, eqStates, new_index):
-        """
-            Return a list of available states domains.
-        """
-        # Thermal energy
-        T_sunami = k_B * self.T * np.log(f0 * tau_mes)
-
-        # Determine if the high temperature limit is reached
-        X = np.linspace(0, 2*np.pi, 256)
-        max_energy_theta, = optimize.fmin(lambda x: -self.energy(x), np.argmax(self.energy(X)), disp=False)
-
-        if self.energy(max_energy_theta) <= eqStates[new_index, 1] + T_sunami:
-            # high temperature limit
-            return np.array([[0, 2*np.pi]])
-
-        # adding the 2π boundary to the eqStates
-        eqStates = np.append(eqStates, [[np.pi * 2, self.energy(np.pi * 2), False]], axis=0)
-        #print np.degrees(eqStates[:, 0])
-        #domains = np.zeros(len(eqStates) + 2, dtype=float)
-        #domains = np.array([[0., 0.]], dtype=float)
-        domains = np.array([0.], dtype=float)
-        # Energy maximum
-        E_max = eqStates[new_index, 1] + T_sunami
-
-        # Temperature relative energy function
-        f = lambda x: self.energy(x) - E_max
-
-        #print 'eq ', np.degrees(eqStates[:,0])
-
-        #Indexes
-        j = 0
-        i = 0
-        while i < len(eqStates):
-            #test if the thermal energy is in between the domain range
-            # if higher
-            if ( (f(domains[j]) > 0) and (f(eqStates[i,0]) > 0) ) :
-                #print "higher", i
-                # the domain is not reachable
-                # if stable
-                if eqStates[i, 2]:
-                    # set the boundary to the next unstable position, which can only be higher
-                    if (i + 1) < len(eqStates):
-                        domains[j] = eqStates[i+1, 0]
-                    else:
-                        domains[j] = 2*np.pi
-                    i += 1
-                else:
-                    # go to the next domain
-                    domains[j] = eqStates[i, 0]
-                #print np.degrees(domains)
-            #if lower
-            elif ( (f(domains[j]) < 0) and (f(eqStates[i,0]) < 0) ):
-                # do nothing, domains[j] can still be reached
-                # except if we are at the end
-                if i == len(eqStates) - 1:
-                    domains = np.append(domains, [2*np.pi])
-                #print "lower", i
-                #print np.degrees(domains)
-
-            else:
-                # not lower, so in between
-                #searching the zero
-                #print "in between", i
-                zero = optimize.brentq(f, domains[j], eqStates[i, 0])
-
-                #if stable
-                if eqStates[i, 2]:
-                    #the zero correspond to the left boundary
-                    domains[j] = zero
-                    domains = np.append(domains, [eqStates[i, 0], eqStates[i, 0]])
-
-                elif (eqStates[i,0] == 2*np.pi) and (f(eqStates[i, 0]) < 0):
-                    #case if the right boundary is 360 degrees and reachable
-                    # the zero became the left boundary domain, and 360 the right one
-                    domains[j] = zero
-                    domains = np.append(domains, [eqStates[i, 0]])
-
-                elif (eqStates[i,0] == 2*np.pi) and (f(eqStates[i, 0]) > 0):
-                    #case if the right boundary is 360 degrees and non reachable
-                    # the zero became the right boundary domain
-                    domains = np.append(domains, [ zero])
-                else:
-                    # closing the right boundary of the current domain and adding the next one
-                    domains = np.append(domains, [ zero, eqStates[i, 0]])
-                #print np.degrees(domains)
-
-
-            j = len(domains) - 1
-            i += 1
-        #print np.degrees(domains)
-
-        # Joining the domains
-        i = 0
-        while i < len(domains)-1:
-            if domains[i] == domains[i+1]:
-                domains = np.delete(domains, [i, i+1])
-                i = 0
-
-            i += 1
-
-        #print np.degrees(domains)
-
-        # Taking out the extra bound, if odd number and 2*pi boundary
-        if (len(domains) % 2 == 1) and domains[-1] == 2*np.pi:
-            domains = np.delete(domains, len(domains)-1)
-        elif len(domains) % 2 == 1:
-            print ("Erreur programmation, nombre de domaine impair. Un cas n'est pas pris en compte.")
-
-        #Reshaping
-        domains = domains.reshape(len(domains)/2, 2)
-        #print (np.degrees(domains))
-
-        # Determine in which domain the magnetization is
-        mask = np.zeros(len(domains), dtype=bool)
-
-        for i in np.arange(len(domains)):
-            # if inside the boundary, make it true, else false
-            if (eqStates[new_index, 0] <= domains[i,1]) and (eqStates[new_index, 0] >= domains[i,0]):
-                mask[i] = True
-            else:
-                mask[i] = False
-        #print mask, (mask[0] + mask[-1]), domains[-1,1] % (2*np.pi)
-        #if the left and right boundary are joined ([0,x] and [y, 2π]), and one is reachable, make the other reachable
-        if (domains[-1,1] % (2*np.pi) == domains[0,0]) and ((mask[0] + mask[-1]) == True):
-            mask[0] = True
-            mask[-1] = True
-
-        return domains[mask]
-
-
-    # Main function
-    def relax(self):
-        # First, we need to know the energy extrema
-        eqStates = self.search_eqStates()
-        #print(np.degrees(eqStates[:,0]), "\n", eqStates[:,1:3])
-        # Find the starting range
-        pre_index = self.find_0KIndex(eqStates)
-        #print(pre_index)
-        pre_theta = eqStates[pre_index, 0]
-        #print(np.degrees(pre_theta))
-
-        # Determine if the position changes with temperature
-        new_index = self.check_newWheel(eqStates, pre_index)
-        #print(new_index)
-
-        # updating the theta
-        #self.theta_eq = eqStates[new_index, 0]
-
-        # Search the states which can be reached
-        domains = self.find_allowedStates(eqStates, new_index)
-
-
-        print ("domains", np.degrees(domains))
-
-        # Integrate
-        Z_part, int_long, int_trans = 0., 0., 0.
-        P = lambda x: np.exp(- self.energy(x) / k_B / self.T)
-
-        for i in np.arange(len(domains)):
-
-            Z, Z_err = integrate.quad(P, domains[i, 0], domains[i,1])
-            #print ("Z = ", Z, 'Z_err = ', Z_err )
-            Z_part += Z
-
-        # Check if the partition function is not zero
-        if Z_part == 0:
-            print ("Low temperature limit : 0K model")
-
-            # Uses the theta_eq to calculate the magnetization
-            self.M_l = self.M_f * np.cos(self.theta_eq)
-            self.M_t = self.M_f * np.sin(self.theta_eq)
-
-        else:
-            # Plot the probability function
-            """
+        if False:
             fig = pl.figure()
-            ax = fig.add_subplot(111)
-            ax.grid(True)
-            ax.set_title("Probability")
-            ax.set_xlim([0,360])
-           """
+            ax = fig.add_subplot(111, aspect='equal')
 
-            #print("In-range or high-temperature. Integrates domains...")
+            cax = ax.imshow(self.E[0], interpolation = 'nearest', origin='upper')
+            cbar = fig.colorbar(cax)
 
-            # Calculate the probability, and each magnetization value
-            for i in np.arange(len(domains)):
-                sampling = np.linspace(domains[i, 0], domains[i,1], 1000)
+            pl.show()
 
-                """
-                ax.plot(np.degrees(sampling), P(sampling)/Z_part, 'r-')
-                pl.draw()
-                """
-                # Magnetization mean in the domain
-                L, L_err = integrate.quad(lambda x: P(x) * np.cos(x), domains[i, 0], domains[i,1])
-                Tr, Tr_err = integrate.quad(lambda x: P(x) * np.sin(x), domains[i, 0], domains[i,1])
+        return eqIdx
 
-                int_long += L
-                int_trans += Tr
-                #print(int_long, int_trans, Z_part)
+    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+        """
+            Calculate the magnetization, only using the local minimum state.
+            Will be redefined in Franco_Conde to integrate all the available states.
+            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Return Mt, Ml.
+        """
+        return self.Ms * np.sin(self.theta[eqIdx] - phi), self.Ms * np.cos(self.theta[eqIdx] - phi)
 
-            # Create/Update the magnetization
-            self.M_l = self.M_f * int_long / Z_part
-            self.M_t = self.M_f * int_trans / Z_part
-            #print (int_long / Z_part)
+    # Redefining analyse_energy from Stoner_Wohlfarth
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
+        """
+        # Array containing all the data. Indexes : (phi, H, [H, theta_eq, Mt, Ml])
+        self.data = np.zeros((vsm.phi.size, vsm.H.size, 4))
+
+        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+        eq = np.argmin(self.E[0, 0])
+
+        # Loop over phi
+        for i, phi in enumerate(vsm.phi):
+            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                # A little verbose
+                self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+
+                # Adjusting equilibrium
+                eq = self.search_eq(self.E[i, j], eq)
+
+                # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
+                eq = self.masking_energy(i, j, eq)
+
+                # Calculating the magnetization
+                Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+
+                # Storing the results
+                self.data[i, j] = np.array([H, self.theta[eq], Mt, Ml])
 
 
-class Carey_Respaud(Model):
-    pass
 
-class Radu(Model):
-    """
-        Double macro-spin model.
-    """
-    def model(self):
-        self.model = 'Radu'
-        self.logger.warn("Radu model loaded.")
+            if True:
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 3], '-ro')
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-go')
+                pl.grid()
+                pl.show()
+            if False:
+                fig = pl.figure()
+                ax = fig.add_subplot(111, aspect='equal')
 
-    def relax(self):
-        pass
+                cax = ax.imshow(self.E[0], interpolation = 'nearest', origin='upper')
+                cbar = fig.colorbar(cax)
+
+                pl.show()
+
+
+class Franco_Conde(Garcia_Otero):
+    def __init__(self):
+        # Initiating subclasses
+        super().__init__()
+
+        self.logger.debug("Init. Class Franco_Conde")
+        # Naming the model
+        self.model = "Franco_Conde"
+
+
+        self.logger.info("Model loaded : {}".format(self.model))
+
+    # Same energy function as Garcia_Otero
+
+    # Redifining only calculate_magnetization
+    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+        """
+            Calculate the magnetization, by integrating all the available states.
+            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Return Mt, Ml.
+        """
+        # Energy array
+        E = self.E[phiIdx, HIdx]
+
+        # Probability array
+        P = np.exp(- E / k_B / self.T)
+
+        # Partition function
+        Z = np.ma.sum(P)
+
+        # Testing if the sum is inf OR Z==0
+        if np.isinf(Z) or Z==0:
+            # Only one state is accessible
+            P[:] = 0
+            P[eqIdx] = 1
+            Z = 1
+
+        # Calculating magnetization
+        Ml = np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
+        Mt = np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+
+        return Mt, Ml
+
+
+class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
+    def __init__(self):
+        # Initiating subclasses
+        super().__init__()
+
+        self.logger.debug("Init. Class Rotatable_AF")
+        # Naming the model
+        self.model = "Rotatable_AF"
+
+        self.logger.info("Model loaded : {}".format(self.model))
+
+    # Redefining the energy function
+    def energy(self):
+        exchange = lambda th, alph: - self.J_ex * self.S * np.cos(th - alph)
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(th, alph)
+
+    # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
+    def calculate_energy(self, vsm):
+        """
+            Calculate the energy for each parameters' values given by the vsm.
+            The parameters are, in order : phi, H, alpha, theta
+        """
+
+        # sparse=True for saving memory
+        # indexing : place the element in the index order
+        Ph, Hf, Al, Th = np.meshgrid(vsm.phi, vsm.H, self.alpha, self.theta, sparse=True, indexing='ij')
+
+        # Creating a masked array. All values unmasked.
+        self.E = np.ma.array(self.energy()(Ph, Hf, Al, Th))
+
+    # Redefining from search_eq in Stoner_Wohlfarth
+    def search_eq(self, E, eq):
+        """
+            Search the equilibrium state «eq» depending on the initial state «ini» and the energy landscape «E».
+            eq is a two-value array [alpha_index, theta_index]
+            Return the index of equilibrium
+        """
+        # stopping criteria
+        found = False
+
+        # Overflow security
+        k = 0
+
+        # E dimension
+        nb = np.shape(E)
+
+        # Path of equilibrium
+        N_eq = np.zeros((1, 2))
+        N_eq[0] = eq
+
+        while not found:
+            k += 1
+
+            #Masking the array
+            E = np.ma.array(E)
+            E.mask = True
+
+            # Unmasking all the equilibrium neighbours states
+            #   1 1 1
+            #   1 0 1
+            #   1 1 1
+            for i in np.arange(-1, 2) + N_eq[k-1][0]:
+                for j in np.arange(-1, 2) + N_eq[k-1][1]:
+                    if i*j != 1:    #Not the center
+                        E.mask[i % nb[0], j % nb[1]] = False
+
+            # Append the minimal state to N_eq
+            minIdx = E.argmin()
+            N_eq = np.append(N_eq, [[np.floor(minIdx / nb[1]), minIdx % nb[1]]], axis=0)
+
+            # Comparing energy
+            barrier = E[N_eq[k][0], N_eq[k][1]] - E[N_eq[k-1][0], N_eq[k-1][1]]
+
+            if barrier < 0:
+                # Better state
+                # Nothing to do, continue the loop
+                continue
+            elif barrier == 0:
+                # Same energy state. Checking if we have already been there
+                if k < 2:
+                    continue
+                elif (N_eq[k] == N_eq[k-2]).all():
+                    # already been there
+                    # Stopping the loop
+                    break
+                else:
+                    continue
+            else:
+                # no better states
+                break
+
+            # If too much loop
+            if k == 1000:
+                self.logger.error("search_eq : Not converging.")
+                break
+
+        # No forgetting to unmask the array
+        #E.mask = False
+        return N_eq[-1]
+
+    # Redefining from Garcia_Otero
+    def masking_energy(self, phiIdx, HIdx, eqIdx):
+        """
+            Method for masking all non-reachable states above the equilibrium.
+            After searching all the available states, return the new equilibrium position.
+            The non-reachable states are masqued in self.E
+        """
+        ok = False      # Test result
+
+        # Shape of E[phiIdx, HIdx]
+        nb = np.array([self.alpha.size, self.theta.size])
+
+        # Index of while loop
+        k = 0
+        # Loop
+        while not ok:
+            k += 1
+            # No forgetting to unmask the array
+            self.E[phiIdx, HIdx, :, :].mask = False
+
+            if False:
+                #print("eqIdx", eqIdx[0], eqIdx[1])
+                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
+                fig = pl.figure()
+                ax = fig.add_subplot(111, aspect='equal')
+
+                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
+                cbar = fig.colorbar(cax)
+
+                ax.plot(eqIdx[1], eqIdx[0], 'ro')
+
+                pl.savefig("tmp/phi{}_H{}_k{}_1_landscape.pdf".format(phiIdx, str(HIdx).zfill(4), k))
+                #pl.show()
+                pl.close()
+
+
+            # Masking all the values above energy state equilibrium
+            mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(self.f0 * self.tau_mes) * k_B * self.T
+
+            # Labeling the mask (0-> unreachable states ; 1,2,3, i..->ith zone)
+            mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
+
+            ## Searching equivalent zones (the array is periodic)
+            # First scanning alpha boundaries
+            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+            for i in np.arange(nb[0]):
+                left = mask_lab[i, 0]
+                right = mask_lab[i, -1]
+                if left and right and (left != right): #left and right not zero, and different labels
+                    zones_equiv.add(tuple((min(left, right), max(left, right))))
+
+            # Converting the set to array
+            zones_equiv = np.array(list(zones_equiv))
+
+            # Relabeling the upper label to the equivalent lower label
+            for i, val in enumerate(zones_equiv):
+                # Creating a mask with only the upper label
+                mask_rm = mask_lab == val[1]
+                #to replace all the zone by le lower label
+                mask_lab[mask_rm] = val[0]
+
+            # Then, scanning theta boundaries
+            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+            for i in np.arange(nb[1]):
+                top = mask_lab[0, i]
+                bottom = mask_lab[-1, i]
+                if top and bottom and (top != bottom): #left and right not zero, and different labels
+                    zones_equiv.add( tuple(    (min(top, bottom), max(top, bottom))       )    )
+
+            # Converting the set to array
+            zones_equiv = np.array(list(zones_equiv))
+
+            # Relabeling the upper label to the equivalent lower label
+            for i, val in enumerate(zones_equiv):
+                # Creating a mask with only the upper label
+                mask_rm = mask_lab == val[1]
+                #to replace all the zone by le lower label
+                mask_lab[mask_rm] = val[0]
+
+            # Renaming the last labels (not useful)
+            #labels = np.unique(z_lab)
+            #z_lab = np.searchsorted(labels, z_lab)
+
+            #Zone where the equilibrium is
+            zone_eq = mask_lab[eqIdx[0], eqIdx[1]]
+            # Creating a new mask
+            new_mask = mask_lab != zone_eq
+
+            #Applying the mask
+            self.E[phiIdx, HIdx, new_mask] = np.ma.masked
+
+            # Searching the minimum
+            mini = np.ma.min(self.E[phiIdx, HIdx, :, :])
+            # If the minimum over the zone is the same that the eq energy
+            if mini == self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]]:
+                # finish the loop
+                ok = True
+            else:
+                # new equilibrium
+                self.logger.warn("old eq {}".format(eqIdx))
+                eqIdx = self.E[phiIdx, HIdx, :, :].argmin()
+                eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
+                self.logger.warn("new eq {}".format(eqIdx))
+
+            if False:
+                #print("eqIdx", eqIdx[0], eqIdx[1])
+                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
+                fig = pl.figure()
+                ax = fig.add_subplot(111, aspect='equal')
+
+                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
+                cbar = fig.colorbar(cax)
+
+                ax.plot(eqIdx[1], eqIdx[0], 'ro')
+
+                ax.set_title("id:{}".format(HIdx))
+
+                pl.savefig("tmp/phi{}_H{}_k{}_7_landFinal.pdf".format(phiIdx, str(HIdx).zfill(4), k))
+                #pl.show()
+                pl.close()
+
+        return eqIdx
+
+    # Redefining calculate_magnetization from Franco_Conde
+    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+        """
+            Calculate the magnetization, by integrating all the available states.
+            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Return Mt, Ml.
+        """
+        # Energy array
+        E = self.E[phiIdx, HIdx]
+
+        # Probability array
+        P = np.exp(- E / k_B / self.T)
+
+        # Partition function
+        Z = np.ma.sum(P)
+
+        # Testing if the sum is inf OR Z==0
+        if np.isinf(Z) or Z==0:
+            # Only one state is accessible
+            P[:] = 0
+            P[eqIdx[0], eqIdx[1]] = 1
+            Z = 1
+
+        # Calculating magnetization
+        Ml = np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
+        Mt = np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+
+        return Mt, Ml
+
+    # Redefining analyse_energy from Garcia_Otero
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta, alpha]]
+        """
+        # Array containing all the data. Indexes : (phi, H, [H, Mt, Ml, theta_eq, alpha_eq])
+        self.data = np.zeros((vsm.phi.size, vsm.H.size, 5))
+
+        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+        eq = np.argmin(self.E[0, 0])
+        thIdx = eq % self.theta.size
+        alphIdx = np.floor(eq / self.alpha.size)
+        eq = np.array([alphIdx, thIdx])
+
+        # Loop over phi
+        for i, phi in enumerate(vsm.phi):
+            #self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                # A little verbose
+                self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+
+                # Adjusting equilibrium
+                eq = self.search_eq(self.E[i, j], eq)
+
+                # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
+                eq = self.masking_energy(i, j, eq)
+
+                # Calculating the magnetization
+                Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+
+                # Storing the results
+                self.data[i, j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
+
+                #if j == 3:
+                #    sys.exit(0)
+
+                if False:
+                    fig = pl.figure()
+                    ax = fig.add_subplot(111, aspect='equal')
+
+                    cax = ax.imshow(self.E[i, j], interpolation = 'nearest', origin='upper')
+                    cbar = fig.colorbar(cax)
+
+                    pl.show()
+
+            if True:
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-ro')
+                pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 1], '-go')
+                pl.grid()
+                pl.savefig("tmp/cycle.pdf")
