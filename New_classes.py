@@ -20,8 +20,6 @@ from StoneX.logging_init import *
 from StoneX.constants import *
 
 
-
-
 # Domain class
 class VSM(object):
     def __init__(self):
@@ -347,10 +345,9 @@ class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro, Ferro):
         self.model = "Meiklejohn_Bean"
         self.logger.debug("Creating model {}".format(self.model))
 
-        self.S = (0.2*1e-9)**2
+        self.S = (200e-9)**2
         self.J_ex = 11e-3 * 1e-7 * 1e4             #J/m**2
-        #print(self.alpha)
-        self.alphaui = 0
+
         print("setting_alpha")
 
     def energy(self):
@@ -637,7 +634,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 break
 
         # No forgetting to unmask the array
-        E.mask = False
+        #E.mask = False
         return N_eq[-1]
 
     # Redefining from Garcia_Otero
@@ -652,8 +649,30 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
         # Shape of E[phiIdx, HIdx]
         nb = np.array([self.alpha.size, self.theta.size])
 
+        # Index of while loop
+        k = 0
         # Loop
         while not ok:
+            k += 1
+            # No forgetting to unmask the array
+            self.E[phiIdx, HIdx, :, :].mask = False
+
+            if True:
+                #print("eqIdx", eqIdx[0], eqIdx[1])
+                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
+                fig = pl.figure()
+                ax = fig.add_subplot(111, aspect='equal')
+
+                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
+                cbar = fig.colorbar(cax)
+
+                ax.plot(eqIdx[1], eqIdx[0], 'ro')
+
+                pl.savefig("tmp/phi{}_H{}_k{}_1_landscape.pdf".format(phiIdx, str(HIdx).zfill(4), k))
+                #pl.show()
+                pl.close()
+
+
             # Masking all the values above energy state equilibrium
             mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(f0 * tau_mes) * k_B * self.T
 
@@ -669,8 +688,8 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 if left and right and (left != right): #left and right not zero, and different labels
                     zones_equiv.add(tuple((min(left, right), max(left, right))))
 
-            # Ordering the set
-            zones_equiv = np.sort(np.array(list(zones_equiv)), axis=0)
+            # Converting the set to array
+            zones_equiv = np.array(list(zones_equiv))
 
             # Relabeling the upper label to the equivalent lower label
             for i, val in enumerate(zones_equiv):
@@ -679,17 +698,16 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 #to replace all the zone by le lower label
                 mask_lab[mask_rm] = val[0]
 
-
             # Then, scanning theta boundaries
             zones_equiv = set()     #set() to contain «unique» equivalent zone label;
             for i in np.arange(nb[1]):
-                left = mask_lab[0, i]
-                right = mask_lab[-1, i]
-                if left and right and (left != right): #left and right not zero, and different labels
-                    zones_equiv.add(tuple((min(left, right), max(left, right))))
+                top = mask_lab[0, i]
+                bottom = mask_lab[-1, i]
+                if top and bottom and (top != bottom): #left and right not zero, and different labels
+                    zones_equiv.add( tuple(    (min(top, bottom), max(top, bottom))       )    )
 
-            # Ordering the set
-            zones_equiv = np.sort(np.array(list(zones_equiv)), axis=0)
+            # Converting the set to array
+            zones_equiv = np.array(list(zones_equiv))
 
             # Relabeling the upper label to the equivalent lower label
             for i, val in enumerate(zones_equiv):
@@ -719,9 +737,26 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             else:
                 # new equilibrium
                 self.logger.warn("old eq {}".format(eqIdx))
-                eqIdx = self.E[phiIdx, HIdx, :].argmin()
+                eqIdx = self.E[phiIdx, HIdx, :, :].argmin()
                 eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
                 self.logger.warn("new eq {}".format(eqIdx))
+
+            if True:
+                #print("eqIdx", eqIdx[0], eqIdx[1])
+                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
+                fig = pl.figure()
+                ax = fig.add_subplot(111, aspect='equal')
+
+                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
+                cbar = fig.colorbar(cax)
+
+                ax.plot(eqIdx[1], eqIdx[0], 'ro')
+
+                ax.set_title("id:{}".format(HIdx))
+
+                pl.savefig("tmp/phi{}_H{}_k{}_7_landFinal.pdf".format(phiIdx, str(HIdx).zfill(4), k))
+                #pl.show()
+                pl.close()
 
         return eqIdx
 
@@ -790,6 +825,9 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 # Storing the results
                 self.data[i, j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
 
+                #if j == 3:
+                #    sys.exit(0)
+
                 if False:
                     fig = pl.figure()
                     ax = fig.add_subplot(111, aspect='equal')
@@ -803,7 +841,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 2], '-ro')
                 pl.plot(convert_field(self.data[i, :, 0], 'cgs'), self.data[i, :, 1], '-go')
                 pl.grid()
-                pl.show()
+                pl.savefig("tmp/cycle.pdf")
 
 
 

@@ -26,8 +26,8 @@ logger.info("Nouvelle version")
 vsm = VSM()
 
 # Set the vsm parameters
-vsm.H = (5, 0.1, 'cgs')
-vsm.phi = (10, 50, 50, 'deg')
+vsm.H = (20, 1, 'cgs')
+vsm.phi = (0, 50, 50, 'deg')
 print(vsm)
 
 # Then the sample
@@ -40,8 +40,13 @@ sample = create_sample(Rotatable_AF)
 # Set the sample parameters
 sample.theta = (1, 'deg')
 sample.alpha = (1, 'deg')
-sample.J_ex = 0
-sample.T = 10
+
+# Anisotropy
+sample.K_f = sample.K_f * 5
+sample.K_af = sample.K_af * 7
+#sample.J_ex = 0
+#print(sample.J_ex)
+sample.T = 5000
 
 print(sample)
 
