@@ -84,7 +84,7 @@ class Stoner_Wohlfarth(Ferro):
                 idx = np.argmin(barrier)
                 eq = (eq + idx * 2 - 1) % E.size
 
-            if k == 1000:
+            if k == 10000:
                 self.logger.error("search_eq : Not converging.")
                 break
 
@@ -173,6 +173,9 @@ class Garcia_Otero(Meiklejohn_Bean):
         """
         ok = False      # Test result
         while not ok:
+            # No forgetting to unmask the array
+            self.E[phiIdx, HIdx, :].mask = False
+
             # Masking all the values above energy state equilibrium
             mask = self.E[phiIdx, HIdx, :] > self.E[phiIdx, HIdx, eqIdx] + np.log(self.f0 * self.tau_mes) * k_B * self.T
 
@@ -238,40 +241,48 @@ class Garcia_Otero(Meiklejohn_Bean):
             After calculating the energy depending on the parameters, search in which state is the magnetization.
             Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
         """
-        # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq])
-        self.rotation = Rotation(vsm.phi)
-        self.rotation.info(self)
+        # Creating an array for temperature change
+        self.rotation = np.zeros(vsm.T.size, dtype='object')
 
-        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
-        eq = np.argmin(self.E[0, 0])
+        # Loop over vsm.T
+        for k, T in enumerate(vsm.T):
+            # Changing the sample's temperature
+            self.T = T
 
-        # Loop over phi
-        for i, phi in enumerate(vsm.phi):
-            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+            # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq])
+            self.rotation[k] = Rotation(vsm.phi)
+            self.rotation[k].info(self)
 
-            # Creating a cycle
-            cycle = Cycle(vsm.H, 4)
-            cycle.info(self, phi)
+            # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+            eq = np.argmin(self.E[0, 0])
 
-            # Loop over H (max -> min -> max)
-            for j, H in enumerate(vsm.H):
-                # A little verbose
-                #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+            # Loop over phi
+            for i, phi in enumerate(vsm.phi):
+                self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
 
-                # Adjusting equilibrium
-                eq = self.search_eq(self.E[i, j], eq)
+                # Creating a cycle
+                cycle = Cycle(vsm.H, 4)
+                cycle.info(self, phi)
 
-                # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
-                eq = self.masking_energy(i, j, eq)
+                # Loop over H (max -> min -> max)
+                for j, H in enumerate(vsm.H):
+                    # A little verbose
+                    #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
 
-                # Calculating the magnetization
-                Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+                    # Adjusting equilibrium
+                    eq = self.search_eq(self.E[i, j], eq)
 
-                # Storing the results
-                cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
+                    # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
+                    eq = self.masking_energy(i, j, eq)
 
-            # Saving cycle
-            self.rotation.cycles[i] = cycle
+                    # Calculating the magnetization
+                    Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+
+                    # Storing the results
+                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
+
+                # Saving cycle
+                self.rotation[k].cycles[i] = cycle
 
 
 class Franco_Conde(Garcia_Otero):
@@ -410,7 +421,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 break
 
             # If too much loop
-            if k == 1000:
+            if k == 10000:
                 self.logger.error("search_eq : Not converging.")
                 break
 
@@ -576,40 +587,50 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             After calculating the energy depending on the parameters, search in which state is the magnetization.
             Returns the magnetization path : tab[phi, [H, Mt, Ml, theta, alpha]]
         """
-        # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq, alpha_eq])
-        self.rotation = Rotation(vsm.phi)
-        self.rotation.info(self)
+        # Creating an array for temperature change
+        self.rotation = np.zeros(vsm.T.size, dtype='object')
 
-        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
-        eq = np.argmin(self.E[0, 0])
-        thIdx = eq % self.theta.size
-        alphIdx = np.floor(eq / self.alpha.size)
-        eq = np.array([alphIdx, thIdx])
+        # Loop over vsm.T
+        for k, T in enumerate(vsm.T):
+            # Verbose
+            self.logger.info("Changing temperature : T = {} K".fomat(T))
+            # Changing the sample's temperature
+            self.T = T
 
-        # Loop over phi
-        for i, phi in enumerate(vsm.phi):
-            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+            # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq, alpha_eq])
+            self.rotation[k] = Rotation(vsm.phi)
+            self.rotation[k].info(self)
 
-            # Creating a cycle
-            cycle = Cycle(vsm.H, 5)
-            cycle.info(self, phi)
+            # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+            eq = np.argmin(self.E[0, 0])
+            thIdx = eq % self.theta.size
+            alphIdx = np.floor(eq / self.theta.size)
+            eq = np.array([alphIdx, thIdx])
 
-            # Loop over H (max -> min -> max)
-            for j, H in enumerate(vsm.H):
-                # A little verbose
-                #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+            # Loop over phi
+            for i, phi in enumerate(vsm.phi):
+                self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
 
-                # Adjusting equilibrium
-                eq = self.search_eq(self.E[i, j], eq)
+                # Creating a cycle
+                cycle = Cycle(vsm.H, 5)
+                cycle.info(self, phi)
 
-                # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
-                eq = self.masking_energy(i, j, eq)
+                # Loop over H (max -> min -> max)
+                for j, H in enumerate(vsm.H):
+                    # A little verbose
+                    #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
 
-                # Calculating the magnetization
-                Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+                    # Adjusting equilibrium
+                    eq = self.search_eq(self.E[i, j], eq)
 
-                # Storing the results
-                cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
+                    # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
+                    eq = self.masking_energy(i, j, eq)
 
-            # Saving the cycle
-            self.rotation.cycles[i] = cycle
+                    # Calculating the magnetization
+                    Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+
+                    # Storing the results
+                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
+
+                # Saving the cycle
+                self.rotation[k].cycles[i] = cycle

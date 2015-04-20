@@ -36,6 +36,9 @@ class VSM(object):
         # Orientation
         self.phi = (0, 95, 10, 'deg')
 
+        # Temperature
+        self.T = (300, 301, 1, 'K')
+
         #self.logger.info("""VSM loaded
         """Parameters :
             H = {0} A/m
@@ -93,7 +96,7 @@ class VSM(object):
             self._H = np.append(-half, half[1:])
 
     @property
-    def phi(self, unit='deg'):
+    def phi(self, unit='rad'):
         return self._phi
 
     @phi.setter
@@ -123,9 +126,9 @@ class VSM(object):
 
     @property
     def T(self, unit='K'):
-        return self._phi
+        return self._T
 
-    @phi.T
+    @T.setter
     def T(self, val):
         """
             T setter. Need a tuple as argument with four variables (1 optionnal): start, stop, step, unit
@@ -138,7 +141,7 @@ class VSM(object):
             # If no exception
             if unit == 'degC':
                 start, stop, step = np.array([start + 273, stop + 273, step])
-            elif unit != 'rad':
+            elif unit != 'K':
                 self.logger.warn("T.setter : unknown «{0}» system, using 'K' by default.".format(unit))
                 unit = 'K'
 
@@ -148,7 +151,7 @@ class VSM(object):
             if stop == start:
                 self.logger.warn("vsm.T cannot be empty. Use start < step strictly. Using stop=step")
                 stop = start + step
-            self._phi = np.arange(start, stop, step)
+            self._T = np.arange(start, stop, step)
 
     def load(self, sample):
         """
@@ -158,8 +161,14 @@ class VSM(object):
         self.sample = sample
 
     def measure(self):
+        #
+        self.logger.info("Calculating energy...")
+        self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
         self.sample.calculate_energy(self)
+        #
+        self.logger.info("Analysing_energy...")
         self.sample.analyse_energy(self)
+        #
         self.process_cycles()
 
     def process_cycles(self):
@@ -172,5 +181,6 @@ class VSM(object):
                 – Mr1, Mr2
         """
         self.logger.info("Processing cycles...")
-        self.sample.rotation.process()
-        self.sample.rotation.plot(self.sample.name)
+        for k, rot in enumerate(self.sample.rotation):
+            rot.process()
+            rot.plot(self.sample.name)

@@ -32,27 +32,30 @@ vsm = VSM()
 
 # Set the vsm parameters
 vsm.H = (20, 0.1, 'cgs')
-vsm.phi = (1, 360, 5, 'deg')
+vsm.phi = (0, 1, 5, 'deg')
+vsm.T = (100, 101, 1, 'K')
 print(vsm)
 
+
 # Then the sample
-sample = create_sample(Stoner_Wohlfarth)
+#sample = create_sample(Stoner_Wohlfarth)
 #sample = create_sample(Meiklejohn_Bean)
 #sample = create_sample(Garcia_Otero)
 #sample = create_sample(Franco_Conde)
-#sample = create_sample(Rotatable_AF, 'sample')
+sample = create_sample(Rotatable_AF, 'sample')
 
 # Set the sample parameters
 sample.theta = (0.1, 'deg')
-sample.alpha = (0.1, 'deg')
+sample.alpha = (1, 'deg')
 
 # Anisotropy
 sample.K_f = sample.K_f * 5
+
 #sample.V_f = sample.V_f / 10
-#sample.K_af = sample.K_af * 6
+sample.K_af = sample.K_af * 4
 #sample.J_ex = 0
 #print(sample.J_ex)
-sample.T = 300
+#sample.T = 100
 
 print(sample)
 
@@ -66,7 +69,6 @@ vsm.load(sample)
 # Measuring
 vsm.measure()
 
-print(type(sample.rotation))
 
 
 ################################################################################
