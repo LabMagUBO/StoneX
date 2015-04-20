@@ -12,5 +12,6 @@ import numpy as np
 from StoneX.Logging import *            # Log functions & logger creation
 from StoneX.Physics import *            # Physical constants and unit functions
 from StoneX.VSM import *                # VSM class
+from StoneX.Cycles import *
 from StoneX.Sample import *             # Sample classes
 from StoneX.Models import *             # Model classes

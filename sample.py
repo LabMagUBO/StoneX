@@ -13,10 +13,12 @@
     Methods :
 
 """
-
+import os
+import shutil
 import numpy as np
 from StoneX.Physics import *
 from StoneX.Logging import *
+from StoneX.Cycles import *
 
 
 
@@ -132,7 +134,7 @@ class AntiFerro_rotatable(AntiFerro):
         return uniaxial
 
 
-def create_sample(model):
+def create_sample(model, name='test'):
     """
         List of available models
         — Stoner_Wohlfarth
@@ -147,8 +149,38 @@ def create_sample(model):
             # Initialization of the subclass
             super().__init__()
 
+            self.name = name
+
+            self.create_folder(name)
+
         def __str__(self):
             return "Sample's model: {}".format(self.model)
+
+        def create_folder(self, name):
+            """
+                Create the folder for data exportation.
+            """
+            if not os.path.exists(name):
+                os.makedirs(name)
+                self.logger.info("Creating folder for plotting '{}'.".format(name))
+            else:
+                self.logger.info("Folder '{}' exists.".format(name))
+                # On demande quoi faire
+                yes_choice = np.array(['O', 'o', '', 'oui'])
+                no_choice = np.array(['n', 'N', 'non'])
+                answer = input("Voulez-vous l'effacer? [Y/n]\n?")
+
+                if answer in yes_choice:
+                    self.logger.info("Okayy... To the trash.")
+                    shutil.rmtree(name)
+                    self.logger.info("Creating folder '{}'.".format(name))
+                    os.makedirs(name)
+                elif answer in no_choice:
+                    self.logger.info("Promise, I keep it.")
+                else:
+                    self.logger.error("Not the right answer.")
+                    self.logger.warn("I quit.")
+                    sys.exit(0)
 
 
     return Sample()

@@ -32,7 +32,7 @@ def set_colors():
     logging.addLevelName( logging.WARNING, "\033[1;93m%s\033[1;0m" % logging.getLevelName(logging.WARNING))
     logging.addLevelName( logging.ERROR, "\033[1;91m%s\033[1;0m" % logging.getLevelName(logging.ERROR))
 
-def init_log(name, console_level='debug', file_level='info', log_file=main_file, mode='a'):
+def init_log(name, console_level='info', file_level='info', log_file=main_file, mode='a'):
     """
         Initialize the logger.
 

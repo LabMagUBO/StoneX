@@ -83,6 +83,7 @@ class VSM(object):
                 Hmax, Hstep = convert_field(np.array([Hmax, Hstep]), 'si')
             elif unit != 'si':
                 self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
+                unit = 'si'
 
             if Hstep == 0:
                 self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
@@ -110,12 +111,42 @@ class VSM(object):
                 start, stop, step = np.radians((start, stop, step))
             elif unit != 'rad':
                 self.logger.warn("phi.setter : unknown «{0}» system, using 'rad' by default.".format(unit))
+                unit = 'rad'
 
             if step == 0:
                 self.logger.warn("phi.setter : step cannot be null. Setting step = 1 deg")
                 step = np.radians(1)
             if stop == start:
                 self.logger.warn("vsm.phi cannot be empty. Use start < step strictly. Using stop=step")
+                stop = start + step
+            self._phi = np.arange(start, stop, step)
+
+    @property
+    def T(self, unit='K'):
+        return self._phi
+
+    @phi.T
+    def T(self, val):
+        """
+            T setter. Need a tuple as argument with four variables (1 optionnal): start, stop, step, unit
+        """
+        try:
+            start, stop, step, unit = val
+        except ValueError:
+            raise ValueError("vsm.T => need the following tuple : (start, stop, step, 'K' or 'degC')")
+        else:
+            # If no exception
+            if unit == 'degC':
+                start, stop, step = np.array([start + 273, stop + 273, step])
+            elif unit != 'rad':
+                self.logger.warn("T.setter : unknown «{0}» system, using 'K' by default.".format(unit))
+                unit = 'K'
+
+            if step == 0:
+                self.logger.warn("T.setter : step cannot be null. Setting step = 1 K")
+                step = 1
+            if stop == start:
+                self.logger.warn("vsm.T cannot be empty. Use start < step strictly. Using stop=step")
                 stop = start + step
             self._phi = np.arange(start, stop, step)
 
@@ -129,10 +160,17 @@ class VSM(object):
     def measure(self):
         self.sample.calculate_energy(self)
         self.sample.analyse_energy(self)
-        #self.process_cycles()
+        self.process_cycles()
 
     def process_cycles(self):
         """
-            Analyse (ie calculate the coercive fields and others) the sample's cycles and plot the graphs.
+            Analyse (ie calculate the coercive fields and others) the sample's cycles.
+            All the calculated properties are stored in sample.attrib
+            Calculated properties :
+                — Hc1, Hc2
+                — Mt1, Mt2
+                – Mr1, Mr2
         """
-        pass
+        self.logger.info("Processing cycles...")
+        self.sample.rotation.process()
+        self.sample.rotation.plot(self.sample.name)
