@@ -6,9 +6,11 @@
 ## Global module
 import numpy as np
 import matplotlib.pylab as pl
+from matplotlib.backends.backend_pdf import PdfPages       # Multiple page pdf
 
 ## StoneX module
 from StoneX.Logging import *
+from StoneX.Physics import *
 
 
 class Cycle(object):
@@ -22,7 +24,7 @@ class Cycle(object):
             self.data : H, Mt, Ml,
         """
         # Creating logger for all children classes
-        self.logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
+        self.logger = init_log(__name__)
 
         ## Check the number of cols
         if cols < 3:
@@ -34,6 +36,9 @@ class Cycle(object):
 
         # Storing the fields
         self.data[:, 0] = Htab
+
+        # Energy
+        self.energy = np.zeros(Htab.size, dtype=object)
 
     def info(self, sample, phi):
         """
@@ -95,43 +100,244 @@ class Cycle(object):
         """
             Trace et export le cycle Mt(H) et Ml(H)
         """
-        # Setting the file name.
-        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
-
-        Hc = round((self.H_coer[1] - self.H_coer[0]) / 2, 2)
-        He = round((self.H_coer[1] + self.H_coer[0]) / 2, 2)
-
-        #Création figure
+        ## Cycle figure
+        # Creating figure
         fig = pl.figure()
         fig.set_size_inches(18.5,10.5)
-        #fig.suptitle("{0}".format(file))
+        fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
 
+        # Initiating axis
         ax = fig.add_subplot(111)
         ax.grid(True)
-        # Renseignements
+        #ax.set_title("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
+        ax.set_ylabel("Mag. Moment (A.m²)")
+
+        # First axis
         ax.plot(self.data[:, 0], self.data[:, 2], 'ro-', label='Ml')
         ax.plot(self.data[:, 0], self.data[:, 1], 'go-', label='Mt')
+        ax.set_xlabel('Mag. Induction (A/m)')
         ax.legend()
 
+        # Second axis
+        x1, x2 = ax.get_xlim()
+        ax2 = ax.twiny()
+        ax2.set_xlim(convert_field(x1, 'cgs'), convert_field(x2, 'cgs'))
+        ax2.set_xlabel('Mag. Field (Oe)')
+
+        #New y axis
+        ax3 = ax.twinx()
+        y1, y2 = ax.get_ylim()
+        ax3.set_ylim(y1 * 1e3 * 1e9, y2 * 1e3 * 1e9)
+        ax3.set_ylabel('Mag. Moment (micro emu)')
+
+        # Displaying Hc and Hc (in Oe)
+        Hc = convert_field(round((self.H_coer[1] - self.H_coer[0]) / 2, 2), 'cgs')
+        He = convert_field(round((self.H_coer[1] + self.H_coer[0]) / 2, 2), 'cgs')
         y_lim = ax.get_ylim()
         x_lim = ax.get_xlim()
         x_text = (x_lim[1] - x_lim[0]) * 0.15 + x_lim[0]
         y_text = (y_lim[1] - y_lim[0]) * 0.8 + y_lim[0]
         ax.text(x_text, y_text, "Hc = {0}Oe\nHe = {1}Oe".format(Hc, He), style='italic', bbox={'facecolor':'white', 'alpha':1, 'pad':10})
 
-        #On trace en exportant
-        #self.logger.info("é : {}".format(file))
+        # Exporting graph as pdf
+        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
         pl.savefig(file, dpi=100)
 
         # Not forgetting to close figure (saves memory)
         pl.close(fig)
 
+    def plot_energyPath(self, path):
+        """
+            Plotting the path taken by the magnetic moments depending on H.
+        """
+        # Create the PdfPages object to which we will save the pages:
+        # The with statement makes sure that the PdfPages object is closed properly at
+        # the end of the block, even if an Exception occurs.
+        pdfFile = "{}/path_T{}_phi{}.pdf".format(path, self.T, np.round(np.degrees(self.phi), 2))
+        with PdfPages(pdfFile) as pdf:
+
+            # Determine if the energy landscape is 2D or 1d
+            if len(self.energy[0].shape) == 2:  # 2D
+                ## Plotting (theta, alpha) path
+                Alpha = np.degrees(self.data[:, 4])
+                Theta = np.degrees(self.data[:, 3])
+                Num = Alpha.size/2
+
+                # Creating figure, with title
+                fig = pl.figure()
+                fig.set_size_inches(18.5,10.5)
+                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
+
+                # Axis
+                ax = fig.add_subplot(111, aspect='equal')
+
+                ax.plot(Theta[:Num], Alpha[:Num], 'ro', label="Decreasing H")
+                ax.plot(Theta[Num:], Alpha[Num:], 'bo', label="Increasing H")
+
+                ax.set_xlabel("Theta M_f(deg)")
+                ax.set_ylabel("Alpha M_af(deg)")
+
+                ax.legend()
+
+                # Saving the figure
+                pdf.savefig()
+                # Closing
+                pl.close()
+
+            elif len(self.energy[0].shape) == 1:
+                # Resizing E
+                E = np.ma.zeros((self.energy.size, self.energy[0].size))
+                for i, val in enumerate(self.energy):
+                    E[i, :] = val
+
+                # Field
+                Hmax = self.data[0, 0]
+
+                # Number of step
+                Num = self.data[:, 0].size
+
+                # Creating figure, with title
+                fig = pl.figure()
+                fig.set_size_inches(25, 10.5)
+                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.round(np.degrees(self.phi), 2)))
+
+                ## Plotting energy : increasing field
+                ax = fig.add_subplot(121, aspect='equal')
+                # All energy states with transparency
+                cax_all = ax.imshow(E[:Num/2, :].data, alpha=0.5, label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, -Hmax, Hmax), aspect='auto')
+                # Reachable states
+                cax_reach = ax.imshow(E[:Num/2, :], label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, -Hmax, Hmax), aspect='auto')
+                cbar = fig.colorbar(cax_reach)
+
+                C = ax.contour(E[:Num/2, :].data, 10, colors='black', linewidth=.5, extent=(0, 360, Hmax, -Hmax))
+                #ax.clabel(C, inline=1, fontsize=10)
+
+                ax.plot(np.degrees(self.data[:Num/2, 3]), self.data[:Num/2, 0], 'ro', label='Eq.')
+
+                #ax.set_title("id:{}".format(HIdx))
+                ax.set_xlabel("Theta M_f(deg)")
+                ax.set_ylabel("H")
+
+                ## Plotting energy : decreasing field
+                ax = fig.add_subplot(122, aspect='equal')
+                # All energy states with transparency
+                cax_all = ax.imshow(E[Num/2:, :].data, alpha=0.5, label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, Hmax, -Hmax), aspect='auto')
+                # Reachable states
+                cax_reach = ax.imshow(E[Num/2:, :], label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, Hmax, -Hmax), aspect='auto')
+                cbar = fig.colorbar(cax_reach)
+
+                C = ax.contour(E[Num/2:, :].data, 10, colors='black', linewidth=.5, extent=(0, 360, -Hmax, Hmax))
+                #ax.clabel(C, inline=1, fontsize=10)
+
+                #ax.imshow(E[Num/2:, :].mask, label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, Hmax, -Hmax), aspect='auto')
+
+                ax.plot(np.degrees(self.data[Num/2:, 3]), self.data[Num/2:, 0], 'ro', label='Eq.')
+
+                #ax.set_title("id:{}".format(HIdx))
+                ax.set_xlabel("Theta M_f(deg)")
+                ax.set_ylabel("H")
+
+                # Saving the figure
+                pdf.savefig()
+                # Closing
+                pl.close()
+
+            else:
+                self.logger.warn("Cannot plot energy landscape.")
+
+    def plot_energyLandscape(self, path):
+        """
+            Plotting the energy landscape of the cycles.
+            If the landscape have more than 2 variables (H, theta), plotting the landscape for each H value.
+        """
+
+        # Create the PdfPages object to which we will save the pages:
+        # The with statement makes sure that the PdfPages object is closed properly at
+        # the end of the block, even if an Exception occurs.
+        pdfFile = "{}/landscape_T{}_phi{}.pdf".format(path, self.T, np.round(self.phi, 2))
+        with PdfPages(pdfFile) as pdf:
+
+            # Determine if the energy landscape is 2D or 1d
+            if len(self.energy[0].shape) == 2:  # 2D
+                for i, line in enumerate(self.data):
+                    H = line[0] #field
+                    E = self.energy[i]      #2D array
+                    theta = np.degrees(line[3])
+                    alpha = np.degrees(line[4])
+
+                    # Creating figure, with title
+                    fig = pl.figure()
+                    fig.set_size_inches(18.5,10.5)
+                    fig.suptitle("Model : {}, T = {}K, phi= {}deg, H = {} Oe".format(self.model, self.T, np.degrees(self.phi), np.round(convert_field(H, 'cgs'), 2)))
+
+                    # Axis
+                    ax = fig.add_subplot(111, aspect='equal')
+
+                    cax1 = ax.imshow(E.data, label="Energy landscape", interpolation = 'nearest', origin='upper', alpha=0.6, extent=(0, 360, 360, 0))
+                    cax2 = ax.imshow(E, label="Reachable states", interpolation = 'nearest', origin='upper')
+                    cbar1 = fig.colorbar(cax1)
+                    cbar2 = fig.colorbar(cax2)
+
+                    C = ax.contour(E.data, 10, colors='black', linewidth=.5)
+                    #ax.clabel(C, inline=1, fontsize=10)
+
+                    ax.plot(theta, alpha, 'ro', label='Eq.')
+
+                    #ax.set_title("id:{}".format(HIdx))
+                    ax.set_xlabel("Theta M_f(deg)")
+                    ax.set_ylabel("Alpha M_af(deg)")
+
+                    # Saving the figure
+                    pdf.savefig()
+                    # Closing
+                    pl.close()
+
+
+            elif len(self.energy[0].shape) == 1:
+                Num = self.energy[0].size
+                step = 360 / Num    # Step in degrees
+                Theta = np.arange(Num) * step
+                for i, line in enumerate(self.data):
+                    H = line[0] #field
+
+                    E = self.energy[i]     #1D array
+                    theta = np.degrees(line[3])
+
+                    # Creating figure, with title
+                    fig = pl.figure()
+                    fig.set_size_inches(18.5,10.5)
+                    fig.suptitle("Model : {}, T = {}K, phi= {}deg, H = {} Oe".format(self.model, self.T, np.degrees(self.phi), np.round(convert_field(H, 'cgs'), 2)))
+
+                    # Axis
+                    ax = fig.add_subplot(111)
+
+                    # Energy landscape
+                    ax.plot(Theta, E.data, 'bo', label="Energy")
+                    # Accessible states
+                    ax.plot(Theta, E, 'go', label="Accessible")
+                    # Position of the local minimum
+                    ax.plot(theta, E[theta / 360 * Num], 'ro', label='Eq.')
+                    # Thermal energy from the equilibrium position
+                    ax.plot(Theta, np.zeros(Num) + E[theta / 360 * Num] + np.log(f0 * tau_mes) * k_B * self.T, '-y', label='k_B T')
+
+                    # Legend / Axis
+                    ax.set_xlabel("Theta M_f(deg)")
+                    ax.set_ylabel("E (J)")
+                    ax.legend()
+                    pl.grid()
+
+                    # Saving and closing
+                    pdf.savefig()
+                    pl.close()
+            else:
+                self.logger.warn("Cannot plot energy landscape.")
 
     def export(self, path):
         """
             Export the data.
         """
         pass
+
 
 class Rotation(object):
     def __init__(self, phiTab):
@@ -142,7 +348,7 @@ class Rotation(object):
                 — phiTab : phi array
         """
         # Creating logger for all children classes
-        self.logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
+        self.logger = init_log(__name__)
 
         # Data rotation (phi, Hc, He, Mr1, Mr2, Mt_max, Mt_min)
         self.data = np.zeros((phiTab.size, 7))
@@ -160,51 +366,62 @@ class Rotation(object):
         self.Ms = sample.Ms
 
 
-    def plot(self, path, plot_cycles=True):
+    def plot(self, path, plot_azimuthal=True, plot_cycles=True, plot_energyPath=True, plot_energyLandscape=True):
         """
             Plot the azimutal properties.
         """
         self.logger.info("Plotting rotationnal data in {} folder".format(path))
 
-        ## Plotting cycles
-        if plot_cycles:
-            for i, cycle in enumerate(self.cycles):
-
+        ## Plotting cycles graph
+        for i, cycle in enumerate(self.cycles):
+            # Cycle
+            if plot_cycles:
+                self.logger.info("Plotting cycles...")
                 cycle.plot(path)
+            # Plotting path taken by the magnetization
+            if plot_energyPath:
+                self.logger.info("Plotting energy path...")
+                cycle.plot_energyPath(path)
+            # Energy landscape
+            if plot_energyLandscape:
+                self.logger.info("Plotting energy landscape...")
+                cycle.plot_energyLandscape(path)
 
-        # Plotting azimutal data
-        file = "{0}/azimuthal_{1}_T{2}.pdf".format(path, self.model, round(self.T, 0))
-        data = self.data
+        # Plotting azimuthal
+        if plot_azimuthal:
+            # Plotting azimutal data
+            file = "{0}/azimuthal_{1}_T{2}.pdf".format(path, self.model, round(self.T, 0))
+            data = self.data
 
-        fig = pl.figure()
-        fig.set_size_inches(18.5,18.5)
-        coer = fig.add_subplot(221, polar=True)
-        coer.grid(True)
-        coer.plot(data[:, 0], np.abs(data[:, 1]), 'ro-', label='Hc (Oe)')
-        coer.legend()
+            fig = pl.figure()
+            fig.set_size_inches(18.5,18.5)
+            coer = fig.add_subplot(221, polar=True)
+            coer.grid(True)
+            coer.plot(data[:, 0], np.abs(data[:, 1]), 'ro-', label='Hc (Oe)')
+            coer.legend()
 
-        ex = fig.add_subplot(222, polar=True)
-        ex.grid(True)
-        ex.plot(data[:, 0], np.abs(data[:, 2]), 'bo-', label='He (Oe)')
-        ex.legend()
+            ex = fig.add_subplot(222, polar=True)
+            ex.grid(True)
+            ex.plot(data[:, 0], np.abs(data[:, 2]), 'bo-', label='He (Oe)')
+            ex.legend()
 
-        rem = fig.add_subplot(224, polar = True)
-        rem.grid(True)
-        rem.plot(data[:,0], np.abs(data[:, 3] / self.Ms), 'mo-', label='Mr_1 / Ms')
-        rem.plot(data[:,0], np.abs(data[:, 4] / self.Ms), 'co-', label='Mr_2 / Ms')
-        rem.legend()
+            rem = fig.add_subplot(224, polar = True)
+            rem.grid(True)
+            rem.plot(data[:,0], np.abs(data[:, 3] / self.Ms), 'mo-', label='Mr_1 / Ms')
+            rem.plot(data[:,0], np.abs(data[:, 4] / self.Ms), 'co-', label='Mr_2 / Ms')
+            rem.legend()
 
-        trans = fig.add_subplot(223, polar = True)
-        trans.grid(True)
-        trans.plot(data[:, 0], np.abs(data[:, 5] / self.Ms), 'go-', label='max(Mt)1 (A m**2)')
-        trans.plot(data[:, 0], np.abs(data[:, 6] / self.Ms), 'yo-', label='max(Mt)2 (A m**2)')
-        trans.legend()
+            trans = fig.add_subplot(223, polar = True)
+            trans.grid(True)
+            trans.plot(data[:, 0], np.abs(data[:, 5] / self.Ms), 'go-', label='max(Mt)1 (A m**2)')
+            trans.plot(data[:, 0], np.abs(data[:, 6] / self.Ms), 'yo-', label='max(Mt)2 (A m**2)')
+            trans.legend()
 
-        #On trace en exportant
-        self.logger.info("Exporting azimuthal plot : {}".format(file))
-        pl.savefig(file, dpi=100)
+            #On trace en exportant
+            self.logger.info("Exporting azimuthal plot : {}".format(file))
+            pl.savefig(file, dpi=100)
 
-        pl.close(fig)
+            pl.close(fig)
 
     def process(self):
         """

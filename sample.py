@@ -25,13 +25,14 @@ from StoneX.Cycles import *
 class Domain(object):
     def __init__(self):
         # Creating logger for all children classes
-        self.logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
+        self.logger = init_log(__name__)
 
         # Initiating class
         self.logger.debug("Init. Class Domain")
 
         # Volume
         self.V = 10e-9 * (100e-9)**2
+        self.T = 0
 
 
 class Ferro(Domain):

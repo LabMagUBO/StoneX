@@ -25,7 +25,7 @@ from StoneX.Logging import *
 
 class VSM(object):
     def __init__(self):
-        self.logger = init_log(__name__, console_level='debug', file_level='info', mode='w')
+        self.logger = init_log(__name__)
         self.logger.debug("Init. Class VSM")
 
         ## Cycle's parameters
@@ -39,15 +39,17 @@ class VSM(object):
         # Temperature
         self.T = (300, 301, 1, 'K')
 
-        #self.logger.info("""VSM loaded
-        """Parameters :
-            H = {0} A/m
-            phi = {1} deg
-            H_max = {2} A/m
-            n_step = {3}
+        # Plotting parameters
+        self.plot_cycles = True
+        self.plot_azimuthal = True
+        self.plot_energyLandscape = True
+        self.plot_energyPath = True
+        self.plot_T = True
 
-            No sample loaded. Use «vsm.load(sample)».
-        """#.format(self.H_field, self.phi, self.H_field_max, self.n_H_field))
+        # Export parameters
+        self.export_cycles = True
+        self.export_azimuthal = True
+        self.export_T = True
 
     def __str__(self):
         """
@@ -57,13 +59,19 @@ class VSM(object):
         str = """
         Field : max = {} Oe, nb step = {}, step = {} Oe
         Phi : start = {}, stop = {}deg, step = {}deg
+        T : start = {}K, stop = {}K, step = {}K
         """.format( convert_field(self._H[0], 'cgs'),
                     self._H.size,
                     convert_field(self._H[0] - self._H[1], 'cgs'),
                     np.degrees(self._phi[0]),
                     np.degrees(self._phi[-1]),
-                    np.degrees((self._phi[-1]-self._phi[0])/(self._phi.size-1)) if (self._phi.size > 1) else "???"
+                    np.degrees((self._phi[-1]-self._phi[0])/(self._phi.size-1)) if (self._phi.size > 1) else "???",
+                    self._T[0],
+                    self._T[-1],
+                    (self._T[-1]-self._T[0])/(self._T.size-1) if (self._T.size > 1) else "???"
         )
+
+        str += "\nPlotting :\n\t cycles = {} \n\t azimuthal = {} \n\t energy Path = {} \n\t energy Landscape = {} \n\t T evol = {}".format(self.plot_cycles, self.plot_azimuthal, self.plot_energyPath, self.plot_energyLandscape, self.plot_T)
 
         return str
 
@@ -163,7 +171,7 @@ class VSM(object):
     def measure(self):
         #
         self.logger.info("Calculating energy...")
-        self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
+        #self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
         self.sample.calculate_energy(self)
         #
         self.logger.info("Analysing_energy...")
@@ -183,4 +191,4 @@ class VSM(object):
         self.logger.info("Processing cycles...")
         for k, rot in enumerate(self.sample.rotation):
             rot.process()
-            rot.plot(self.sample.name)
+            rot.plot(self.sample.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)

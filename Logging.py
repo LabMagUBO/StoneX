@@ -32,7 +32,7 @@ def set_colors():
     logging.addLevelName( logging.WARNING, "\033[1;93m%s\033[1;0m" % logging.getLevelName(logging.WARNING))
     logging.addLevelName( logging.ERROR, "\033[1;91m%s\033[1;0m" % logging.getLevelName(logging.ERROR))
 
-def init_log(name, console_level='info', file_level='info', log_file=main_file, mode='a'):
+def init_log(name, console_level='debug', file_level='info', log_file=main_file, mode='a'):
     """
         Initialize the logger.
 
@@ -47,14 +47,15 @@ def init_log(name, console_level='info', file_level='info', log_file=main_file, 
     logger = logging.getLogger(name)
 
     # Deactivate default console output
-    #logger.propagate = False
+    #logger.propagate = True
     if not logger.handlers:
 
         # Set the logger's level, to write everything
         logger.setLevel(logging.DEBUG)
 
         # Formatter
-        file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
+        #file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
+        file_formatter = logging.Formatter("[%(asctime)s] -:- %(message)s")
         console_formatter = logging.Formatter("%(levelname)s\t%(name)s - %(module)s.%(funcName)s \t-> %(message)s")
 
         # Console handler, with its own level

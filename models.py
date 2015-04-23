@@ -96,9 +96,12 @@ class Stoner_Wohlfarth(Ferro):
             Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
         """
 
+        # Creating an array for temperature change. Only one possible value : T=0K
+        self.rotation = np.zeros(1, dtype='object')
+
         # Data stored in Rotation object.
-        self.rotation = Rotation(vsm.phi)
-        self.rotation.info(self)
+        self.rotation[0] = Rotation(vsm.phi)
+        self.rotation[0].info(self)
 
         # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
         eq = np.argmin(self.E[0, 0])
@@ -116,10 +119,11 @@ class Stoner_Wohlfarth(Ferro):
 
                 eq = self.search_eq(self.E[i, j, :], eq)
 
-                cycle.data[j] = np.array([H, self.Ms * np.sin(self.theta[eq] - phi), self.Ms * np.cos(self.theta[eq] - phi), self.theta[eq]])
+                cycle.data[j] = np.array([H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi), self.Ms * self.V_f * np.cos(self.theta[eq] - phi), self.theta[eq]])
+                cycle.energy[j] = self.E[i, j]
 
             # Saving the cycle
-            self.rotation.cycles[i] = cycle
+            self.rotation[0].cycles[i] = cycle
             # Plotting for debug
             if False:
                 pl.plot(convert_field(self.rotation.cycles[i].data[:, 0], 'cgs'), self.rotation.cycles[i].data[:, 2], '-ro')
@@ -158,8 +162,8 @@ class Garcia_Otero(Meiklejohn_Bean):
         self.T = 300     #K
 
         ## Néel relaxation parameters
-        self.f0 = 10**9          #attempt frequency, in Hz
-        self.tau_mes = 100       #measurement mean time, in s
+        self.f0 = f0         #attempt frequency, in Hz
+        self.tau_mes = tau_mes       #measurement mean time, in s
 
         self.logger.info("Model loaded : {}".format(self.model))
 
@@ -233,7 +237,7 @@ class Garcia_Otero(Meiklejohn_Bean):
             Arguments : self, phi, phiIdx, HIdx, eqIdx.
             Return Mt, Ml.
         """
-        return self.Ms * np.sin(self.theta[eqIdx] - phi), self.Ms * np.cos(self.theta[eqIdx] - phi)
+        return self.Ms * self.V_f * np.sin(self.theta[eqIdx] - phi), self.Ms * self.V_f * np.cos(self.theta[eqIdx] - phi)
 
     # Redefining analyse_energy from Stoner_Wohlfarth
     def analyse_energy(self, vsm):
@@ -278,8 +282,10 @@ class Garcia_Otero(Meiklejohn_Bean):
                     # Calculating the magnetization
                     Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
 
-                    # Storing the results
+                    # Storing the results (H, Mt, Ml, theta)
                     cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
+                    cycle.energy[j] = self.E[i, j]
+
 
                 # Saving cycle
                 self.rotation[k].cycles[i] = cycle
@@ -323,8 +329,8 @@ class Franco_Conde(Garcia_Otero):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
-        Mt = self.Ms * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
 
         return Mt, Ml
 
@@ -528,27 +534,10 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                 ok = True
             else:
                 # new equilibrium
-                self.logger.warn("old eq {}".format(eqIdx))
+                #self.logger.warn("old eq {}".format(eqIdx))
                 eqIdx = self.E[phiIdx, HIdx, :, :].argmin()
                 eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
-                self.logger.warn("new eq {}".format(eqIdx))
-
-            if False:
-                #print("eqIdx", eqIdx[0], eqIdx[1])
-                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
-                fig = pl.figure()
-                ax = fig.add_subplot(111, aspect='equal')
-
-                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
-                cbar = fig.colorbar(cax)
-
-                ax.plot(eqIdx[1], eqIdx[0], 'ro')
-
-                ax.set_title("id:{}".format(HIdx))
-
-                pl.savefig("tmp/phi{}_H{}_k{}_7_landFinal.pdf".format(phiIdx, str(HIdx).zfill(4), k))
-                #pl.show()
-                pl.close()
+                #self.logger.warn("new eq {}".format(eqIdx))
 
         return eqIdx
 
@@ -576,8 +565,8 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
-        Mt = self.Ms * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
 
         return Mt, Ml
 
@@ -593,7 +582,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
         # Loop over vsm.T
         for k, T in enumerate(vsm.T):
             # Verbose
-            self.logger.info("Changing temperature : T = {} K".fomat(T))
+            self.logger.info("Changing temperature : T = {} K".format(T))
             # Changing the sample's temperature
             self.T = T
 
@@ -629,8 +618,9 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
                     # Calculating the magnetization
                     Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
 
-                    # Storing the results
-                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.theta[eq[0]]])
+                    # Storing the results (H, Mt, Ml, theta, alpha)
+                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.alpha[eq[0]]])
+                    cycle.energy[j] = self.E[i, j]
 
                 # Saving the cycle
                 self.rotation[k].cycles[i] = cycle
