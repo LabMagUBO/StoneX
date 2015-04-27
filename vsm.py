@@ -48,9 +48,9 @@ class VSM(object):
         self.plot_T = True
 
         # Export parameters
-        self.export_cycles = True
-        self.export_azimuthal = True
-        self.export_T = True
+        self.export_data = True
+        #self.export_azimuthal = True
+        #self.export_T = True
 
     def __str__(self):
         """
@@ -194,6 +194,9 @@ class VSM(object):
             rot.process()
             rot.plot(self.sample.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)
 
+            if self.export_data:
+                rot.export(self.sample.name)
+
         if self.plot_T :
             # Creating a sample's attribute to contain the (Hc, He, Mr, Mt…)
             self.sample.evolT = Tevol(self)
@@ -201,3 +204,6 @@ class VSM(object):
             self.sample.evolT.extract_data(self.sample.rotations)
 
             self.sample.evolT.plot_H(self.sample.name)
+
+            if self.export_data:
+                self.sample.evolT.export(self.sample.name)

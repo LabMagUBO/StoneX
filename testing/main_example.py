@@ -31,9 +31,9 @@ logger.info("Nouvelle version")
 vsm = VSM()
 
 # Set the vsm parameters
-vsm.H = (40, 0.5, 'cgs')
-vsm.phi = (0, 360, 10, 'deg')
-vsm.T = (10, 800, 50, 'K')
+vsm.H = (40, 1, 'cgs')
+vsm.phi = (0, 91, 40, 'deg')
+vsm.T = (100, 800, 5000, 'K')
 
 # Plotting
 vsm.plot_cycles = True
@@ -41,6 +41,9 @@ vsm.plot_azimuthal = True
 vsm.plot_energyPath = True
 vsm.plot_energyLandscape = False    #Takes a lot of time
 vsm.plot_T = True
+
+# Export
+vsm.export_data = True
 
 # Displaying parameters
 logger.info(vsm)
@@ -57,7 +60,7 @@ sample = create_sample(Double_MacroSpin, 'sample2')
 
 # Set the sample parameters
 sample.theta = (1, 'deg')
-sample.alpha = (1, 'deg')
+sample.alpha = (2, 'deg')
 
 # Anisotropy
 #sample.K_f = sample.K_f * 2

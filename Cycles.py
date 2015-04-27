@@ -14,6 +14,15 @@ from StoneX.Physics import *
 
 
 class Cycle(object):
+    """
+        Class containing the cycle's data.
+
+        self.model : model used to calculate the data
+        self.T
+        self.phi
+        self.Ms
+        self.data : array [H, Mt, Ml, theta_eq, alpha_eq (eventually)]
+    """
     def __init__(self, Htab, cols):
         """
             Initiate the cycle.
@@ -346,9 +355,18 @@ class Cycle(object):
 
     def export(self, path):
         """
-            Export the data.
+            Export the data cycle to the path.
         """
-        pass
+        # Define the filename
+        file = "{0}/cycle_{1}_T{2}_phi{3}.dat".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
+
+        # Info
+        self.logger.info("Exporting cycle data : {}".format(file))
+
+        # Exporting
+        header = "Model = {0} \nT = {1}K \nphi = {2} deg \nMs = {3} A/m".format(self.model, self.T, np.degrees(self.phi), self.Ms)
+        header +="H (A/m) \t\tMt (Am**2) /t\tMl (Am**2) \t\t(theta, alpha, ...) (rad)"
+        np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
 
 
 class Rotation(object):
@@ -358,6 +376,8 @@ class Rotation(object):
             Contains all the cycles.
             Arguments :
                 — phiTab : phi array
+
+            sel.data : [cycle.phi, Hc, He, Mr1, Mr2, Mt1, Mt2]
         """
         # Creating logger for all children classes
         self.logger = init_log(__name__)
@@ -430,7 +450,7 @@ class Rotation(object):
             trans.legend()
 
             #On trace en exportant
-            self.logger.info("Exporting azimuthal plot : {}".format(file))
+            self.logger.info("Plotting azimuthal graph : {}".format(file))
             pl.savefig(file, dpi=100)
 
             pl.close(fig)
@@ -455,7 +475,21 @@ class Rotation(object):
         """
             Export the data.
         """
-        pass
+        # Exporting the cycles
+        for i, cycle in enumerate(self.cycles):
+            cycle.export(path)
+
+        # Exporting the azimuthal data
+        file = "{0}/azimuthal_{1}_T{2}.dat".format(path, self.model, round(self.T, 0))
+
+        # Verbose
+        self.logger.info("Exporting azimuthal data : {}".format(file))
+
+        # Export
+        header = "Model = {0} \nT = {1}K \nMs = {2} A/m".format(self.model, self.T, self.Ms)
+        header +="phi(rad) \t\tHc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2(Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
+        np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
+
 
 class Tevol(object):
     """
@@ -468,6 +502,10 @@ class Tevol(object):
         """
             Initiating the data
         """
+        # Creating logger for all children classes
+        self.logger = init_log(__name__)
+
+        # Attributes
         self.T = vsm.T
         self.data = np.zeros((vsm.T.size, vsm.phi.size, 7))
         self.model = vsm.sample.model
@@ -513,3 +551,25 @@ class Tevol(object):
                 # Saving and closing
                 pdf.savefig()
                 pl.close()
+
+    def export(self, path):
+        """
+            Exporting the temperature evolution for each field direction
+        """
+        self.logger.info("Exporting temperature evolution.")
+        # Loop over phi
+        for k, phi in enumerate(self.data[0, :, 0]):
+            # Verbose
+            self.logger.info("\t phi = {} deg".format(np.degrees(phi)))
+
+            # Filename
+            file = "{0}/Tevol_{1}_phi{2}.dat".format(path, self.model, round(np.degrees(phi), 1))
+
+            # Joining data
+            T_vert = self.T.reshape((self.T.size, 1))
+            tab = np.hstack((T_vert, self.data[:, k, 1:]))
+
+            # Exporting
+            header = "Model = {0} \nphi = {1} deg".format(self.model, np.degrees(phi))
+            header +="Hc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2 (Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
+            np.savetxt(file, tab, delimiter='\t', header=header, comments='# ')
