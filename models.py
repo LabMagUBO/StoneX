@@ -35,13 +35,9 @@ class Stoner_Wohlfarth(Ferro):
     def __init__(self):
         super().__init__()
 
-        self.logger.debug("Init. Class Stoner_Wohlfarth")
+        self.logger.debug("Init. Model Class Stoner_Wohlfarth")
         # Naming the model
         self.model = "Stoner_Wohlfarth"
-
-        # Initiating subclasses
-
-        self.logger.info("Model loaded : {}".format(self.model))
 
     # No need to define energy
 
@@ -120,27 +116,27 @@ class Stoner_Wohlfarth(Ferro):
                 eq = self.search_eq(self.E[i, j, :], eq)
 
                 cycle.data[j] = np.array([H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi), self.Ms * self.V_f * np.cos(self.theta[eq] - phi), self.theta[eq]])
-                cycle.energy[j] = self.E[i, j]
+                cycle.energy[j] = np.ma.copy(self.E[i, j])
 
             # Saving the cycle
-            self.rotation[0].cycles[i] = cycle
+            self.rotations[0].cycles[i] = cycle
             # Plotting for debug
             if False:
-                pl.plot(convert_field(self.rotation.cycles[i].data[:, 0], 'cgs'), self.rotation.cycles[i].data[:, 2], '-ro')
-                pl.plot(convert_field(self.rotation.cycles[i].data[:, 0], 'cgs'), self.rotation.cycles[i].data[:, 1], '-go')
+                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 2], '-ro')
+                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 1], '-go')
                 pl.show()
 
 
-class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro, Ferro):
+# Initial : Stoner_Wohlfarth, AntiFerro, Ferro
+class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro):
     def __init__(self):
         super().__init__()
+
+        self.logger.debug("Init. Model Class Meiklejohn_Bean")
         self.model = "Meiklejohn_Bean"
-        self.logger.debug("Creating model {}".format(self.model))
 
         self.S = (200e-9)**2
         self.J_ex = 11e-3 * 1e-7 * 1e4             #J/m**2
-
-        print("setting_alpha")
 
     # Redefining only the energy
     def energy(self):
@@ -153,7 +149,7 @@ class Garcia_Otero(Meiklejohn_Bean):
         # Initiating subclasses
         super().__init__()
 
-        self.logger.debug("Init. Class Garcia_Otero")
+        self.logger.debug("Init. Model Class Garcia_Otero")
         # Naming the model
         self.model = "Garcia_Otero"
 
@@ -162,10 +158,8 @@ class Garcia_Otero(Meiklejohn_Bean):
         self.T = 300     #K
 
         ## Néel relaxation parameters
-        self.f0 = f0         #attempt frequency, in Hz
-        self.tau_mes = tau_mes       #measurement mean time, in s
-
-        self.logger.info("Model loaded : {}".format(self.model))
+        self.f0 = 1e9         #attempt frequency, in Hz
+        self.tau_mes = 100       #measurement mean time, in s
 
     # No need to define energy, same as Meiklejohn_Bean
 
@@ -218,16 +212,6 @@ class Garcia_Otero(Meiklejohn_Bean):
                 self.logger.warn("new eq {}".format(eqIdx))
 
 
-        # Debug plot
-        if False:
-            fig = pl.figure()
-            ax = fig.add_subplot(111, aspect='equal')
-
-            cax = ax.imshow(self.E[0], interpolation = 'nearest', origin='upper')
-            cbar = fig.colorbar(cax)
-
-            pl.show()
-
         return eqIdx
 
     def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
@@ -246,16 +230,18 @@ class Garcia_Otero(Meiklejohn_Bean):
             Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
         """
         # Creating an array for temperature change
-        self.rotation = np.zeros(vsm.T.size, dtype='object')
+        self.rotations = np.zeros(vsm.T.size, dtype='object')
 
         # Loop over vsm.T
         for k, T in enumerate(vsm.T):
+            # Verbose
+            self.logger.info("Changing temperature : T = {} K".format(T))
             # Changing the sample's temperature
             self.T = T
 
             # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq])
-            self.rotation[k] = Rotation(vsm.phi)
-            self.rotation[k].info(self)
+            self.rotations[k] = Rotation(vsm.phi)
+            self.rotations[k].info(self)
 
             # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
             eq = np.argmin(self.E[0, 0])
@@ -284,11 +270,10 @@ class Garcia_Otero(Meiklejohn_Bean):
 
                     # Storing the results (H, Mt, Ml, theta)
                     cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
-                    cycle.energy[j] = self.E[i, j]
-
+                    cycle.energy[j] = np.ma.copy(self.E[i, j])
 
                 # Saving cycle
-                self.rotation[k].cycles[i] = cycle
+                self.rotations[k].cycles[i] = cycle
 
 
 class Franco_Conde(Garcia_Otero):
@@ -296,12 +281,9 @@ class Franco_Conde(Garcia_Otero):
         # Initiating subclasses
         super().__init__()
 
-        self.logger.debug("Init. Class Franco_Conde")
+        self.logger.debug("Init. Model Class Franco_Conde")
         # Naming the model
         self.model = "Franco_Conde"
-
-
-        self.logger.info("Model loaded : {}".format(self.model))
 
     # Same energy function as Garcia_Otero
 
@@ -322,7 +304,7 @@ class Franco_Conde(Garcia_Otero):
         Z = np.ma.sum(P)
 
         # Testing if the sum is inf OR Z==0
-        if np.isinf(Z) or Z==0:
+        if np.isinf(Z) or Z * self.Ms * self.V_f == 0:
             # Only one state is accessible
             P[:] = 0
             P[eqIdx] = 1
@@ -335,21 +317,21 @@ class Franco_Conde(Garcia_Otero):
         return Mt, Ml
 
 
-class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
+# Initial : AntiFerro_rotatable, Franco_Conde, Ferro
+class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
     def __init__(self):
         # Initiating subclasses
         super().__init__()
 
-        self.logger.debug("Init. Class Rotatable_AF")
+        self.logger.debug("Init. Model Class Rotatable_AF")
         # Naming the model
         self.model = "Rotatable_AF"
 
-        self.logger.info("Model loaded : {}".format(self.model))
 
     # Redefining the energy function
     def energy(self):
-        exchange = lambda th, alph: - self.J_ex * self.S * np.cos(th - alph)
-        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(th, alph)
+        exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(alph, th)
 
     # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
     def calculate_energy(self, vsm):
@@ -455,22 +437,6 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             # No forgetting to unmask the array
             self.E[phiIdx, HIdx, :, :].mask = False
 
-            if False:
-                #print("eqIdx", eqIdx[0], eqIdx[1])
-                #print("alpha, theta", np.degrees(self.alpha[eqIdx[0]]), np.degrees(self.theta[eqIdx[1]]))
-                fig = pl.figure()
-                ax = fig.add_subplot(111, aspect='equal')
-
-                cax = ax.imshow(self.E[phiIdx, HIdx], interpolation = 'nearest', origin='upper')
-                cbar = fig.colorbar(cax)
-
-                ax.plot(eqIdx[1], eqIdx[0], 'ro')
-
-                pl.savefig("tmp/phi{}_H{}_k{}_1_landscape.pdf".format(phiIdx, str(HIdx).zfill(4), k))
-                #pl.show()
-                pl.close()
-
-
             # Masking all the values above energy state equilibrium
             mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(self.f0 * self.tau_mes) * k_B * self.T
 
@@ -557,8 +523,8 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
         # Partition function
         Z = np.ma.sum(P)
 
-        # Testing if the sum is inf OR Z==0
-        if np.isinf(Z) or Z==0:
+        # Testing if the sum is inf OR Z * Ms V_f ==0 (ie < 1e-308, depends on the cpu)
+        if np.isinf(Z) or Z * self.Ms * self.V_f == 0:
             # Only one state is accessible
             P[:] = 0
             P[eqIdx[0], eqIdx[1]] = 1
@@ -577,7 +543,7 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             Returns the magnetization path : tab[phi, [H, Mt, Ml, theta, alpha]]
         """
         # Creating an array for temperature change
-        self.rotation = np.zeros(vsm.T.size, dtype='object')
+        self.rotations = np.zeros(vsm.T.size, dtype='object')
 
         # Loop over vsm.T
         for k, T in enumerate(vsm.T):
@@ -587,8 +553,8 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
             self.T = T
 
             # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq, alpha_eq])
-            self.rotation[k] = Rotation(vsm.phi)
-            self.rotation[k].info(self)
+            self.rotations[k] = Rotation(vsm.phi)
+            self.rotations[k].info(self)
 
             # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
             eq = np.argmin(self.E[0, 0])
@@ -620,7 +586,55 @@ class Rotatable_AF(AntiFerro_rotatable, Franco_Conde, Ferro):
 
                     # Storing the results (H, Mt, Ml, theta, alpha)
                     cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.alpha[eq[0]]])
-                    cycle.energy[j] = self.E[i, j]
+                    cycle.energy[j] = np.ma.copy(self.E[i, j])
 
                 # Saving the cycle
-                self.rotation[k].cycles[i] = cycle
+                self.rotations[k].cycles[i] = cycle
+
+
+
+
+class Double_MacroSpin(AntiFerro_Spin, Rotatable_AF):
+    def __init__(self):
+        # Initiating subclasses
+        super().__init__()
+
+        self.logger.debug("Init. Model Class Double_MacroSpin")
+        # Naming the model
+        self.model = "Double_MacroSpin"
+
+    # Redefining the energy
+    def energy(self):
+        exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_Spin.energy(self)(phi, H, alph) + exchange(alph, th)
+
+    # and the magnetization
+    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+        """
+            Calculate the magnetization, by integrating all the available states.
+            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Return Mt, Ml.
+        """
+        # Column view of alpha
+        col_alpha = self.alpha.reshape(self.alpha.size, 1)
+        # Energy array
+        E = self.E[phiIdx, HIdx]
+
+        # Probability array
+        P = np.exp(- E / k_B / self.T)
+
+        # Partition function
+        Z = np.ma.sum(P)
+
+        # Testing if the sum is inf OR Z * Ms V_f ==0 (ie < 1e-308, depends on the cpu)
+        if np.isinf(Z) or Z * self.Ms * self.V_f == 0:
+            # Only one state is accessible
+            P[:] = 0
+            P[eqIdx[0], eqIdx[1]] = 1
+            Z = 1
+
+        # Calculating magnetization
+        Ml = ( self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi))  + self.M_af * self.V_af * np.ma.sum(P * np.cos(col_alpha - phi)) ) / Z
+        Mt = ( self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi))  + self.M_af * self.V_af * np.ma.sum(P * np.sin(col_alpha - phi)) ) / Z
+
+        return Mt, Ml

@@ -21,6 +21,7 @@
 import numpy as np
 from StoneX.Physics import *
 from StoneX.Logging import *
+from StoneX.Cycles import *
 
 
 class VSM(object):
@@ -189,6 +190,14 @@ class VSM(object):
                 – Mr1, Mr2
         """
         self.logger.info("Processing cycles...")
-        for k, rot in enumerate(self.sample.rotation):
+        for k, rot in enumerate(self.sample.rotations):
             rot.process()
             rot.plot(self.sample.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)
+
+        if self.plot_T :
+            # Creating a sample's attribute to contain the (Hc, He, Mr, Mt…)
+            self.sample.evolT = Tevol(self)
+
+            self.sample.evolT.extract_data(self.sample.rotations)
+
+            self.sample.evolT.plot_H(self.sample.name)

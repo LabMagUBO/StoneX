@@ -49,7 +49,6 @@ class Cycle(object):
         self.model = sample.model
         self.Ms = sample.Ms
 
-
     def calc_properties(self):
         """
             Calculate, depending of self.data :
@@ -94,7 +93,6 @@ class Cycle(object):
         half = H.size / 2
         self.Mt_max[0] = np.amax(np.absolute(Mt[:half]))
         self.Mt_max[1] = np.amax(np.absolute(Mt[half:]))
-
 
     def plot(self, path):
         """
@@ -169,15 +167,29 @@ class Cycle(object):
                 fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
 
                 # Axis
-                ax = fig.add_subplot(111, aspect='equal')
+                ax = fig.add_subplot(121, aspect='equal')
 
-                ax.plot(Theta[:Num], Alpha[:Num], 'ro', label="Decreasing H")
-                ax.plot(Theta[Num:], Alpha[Num:], 'bo', label="Increasing H")
+                ax.plot(Theta[:Num], Alpha[:Num], '-ro', label="Decreasing H")
+                ax.plot(Theta[Num:], Alpha[Num:], '-bo', label="Increasing H")
 
                 ax.set_xlabel("Theta M_f(deg)")
                 ax.set_ylabel("Alpha M_af(deg)")
 
+                ax.set_xlim(0, 360)
+                ax.set_ylim(0, 360)
+
                 ax.legend()
+                ax.grid()
+
+                # Independant angles
+                ax2 = fig.add_subplot(122)
+                ax2.plot(Theta, '-ro', label='θ Mf')
+                ax2.plot(Alpha, '-bo', label='α Maf')
+
+                ax2.set_xlabel("Field index")
+                ax2.set_ylabel("Angle (deg)")
+                ax2.grid()
+                ax2.legend()
 
                 # Saving the figure
                 pdf.savefig()
@@ -318,7 +330,7 @@ class Cycle(object):
                     # Position of the local minimum
                     ax.plot(theta, E[theta / 360 * Num], 'ro', label='Eq.')
                     # Thermal energy from the equilibrium position
-                    ax.plot(Theta, np.zeros(Num) + E[theta / 360 * Num] + np.log(f0 * tau_mes) * k_B * self.T, '-y', label='k_B T')
+                    ax.plot(Theta, np.zeros(Num) + E[theta / 360 * Num] + np.log(f0 * tau_mes) * k_B * self.T, '-y', label='25k_B T')
 
                     # Legend / Axis
                     ax.set_xlabel("Theta M_f(deg)")
@@ -444,3 +456,60 @@ class Rotation(object):
             Export the data.
         """
         pass
+
+class Tevol(object):
+    """
+        Class containing the thermal evolution of the different properties.
+        This class is associated with a sample.
+
+        data : (T, phi, [cycle.phi, Hc, He, Mr1, Mr2, Mt1, Mt2])
+    """
+    def __init__(self, vsm):
+        """
+            Initiating the data
+        """
+        self.T = vsm.T
+        self.data = np.zeros((vsm.T.size, vsm.phi.size, 7))
+        self.model = vsm.sample.model
+
+    def extract_data(self, rotations):
+        for k, rot in enumerate(rotations):
+            self.data[k, :, :] = rot.data
+
+    def plot_H(self, path):
+        """
+            Plotting the T evolution of Hc and He for each field's direction
+        """
+
+        # Create the PdfPages object to which we will save the pages:
+        # The with statement makes sure that the PdfPages object is closed properly at
+        # the end of the block, even if an Exception occurs.
+        pdfFile = "{}/Tevol.pdf".format(path)
+        with PdfPages(pdfFile) as pdf:
+            # Loop over phi
+            for k, phi in enumerate(self.data[0, :, 0]):
+
+                # Creating figure
+                fig = pl.figure()
+                fig.set_size_inches(25,10.5)
+                fig.suptitle("Model : {}, phi= {}deg".format(self.model, np.round(np.degrees(phi), 2) ))
+
+                # Hc
+                ax = fig.add_subplot(121)
+                ax.plot(self.T, convert_field(self.data[:, k, 1], 'cgs'), 'ro', label="Hc")
+                ax.set_xlabel("T (K)")
+                ax.set_ylabel("Hc (Oe)")
+                ax.legend()
+                ax.grid()
+
+                # He
+                ax2 = fig.add_subplot(122)
+                ax2.plot(self.T, np.round(convert_field(self.data[:, k, 2], 'cgs'), 2), 'go', label="He")
+                ax2.set_xlabel("T (K)")
+                ax2.set_ylabel("He (Oe)")
+                ax2.legend()
+                ax2.grid()
+
+                # Saving and closing
+                pdf.savefig()
+                pl.close()

@@ -35,6 +35,7 @@ class Domain(object):
         self.T = 0
 
 
+
 class Ferro(Domain):
     """
         Ferromagnetic domain.
@@ -98,13 +99,12 @@ class AntiFerro(Domain):
 
     # No energy function.
 
-class AntiFerro_rotatable(AntiFerro):
+class AntiFerro_Rotatable(AntiFerro):
     def __init__(self):
         super().__init__()
 
         self.logger.debug("Init. Class AntiFerro_rotatable")
 
-        print("setting alpha array")
         self.alpha = (1, 'deg')
         self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9) / 2 * 100 # K_f * 10
 
@@ -133,6 +133,21 @@ class AntiFerro_rotatable(AntiFerro):
     def energy(self):
         uniaxial = lambda alph: self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
         return uniaxial
+
+
+class AntiFerro_Spin(AntiFerro_Rotatable):
+    def __init__(self):
+        super().__init__()
+
+        self.logger.debug("Init. Class AntiFerro_rotatable")
+
+        self.M_af = self.Ms * 50/100        # 1% of the F magnetization
+
+    # Same property as AntiFerro_rotatable
+
+    def energy(self):
+        zeeman = lambda phi, H, alph: - mu_0 * H * self.V_af * self.M_af * np.cos(alph - phi)
+        return lambda phi, H, alph: zeeman(phi, H, alph) + AntiFerro_Rotatable.energy(self)(alph)
 
 
 def create_sample(model, name='test'):

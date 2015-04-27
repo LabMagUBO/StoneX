@@ -18,7 +18,7 @@ mu_0 = 4*np.pi*1e-7 #H/m
 k_B = 1.3806488 * 1e-23 #m2 kg s-2 K-1
 
 ## Néel relaxation parameters
-f0 = 10**9          #attempt frequency, in Hz
+f0 = 1e9          #attempt frequency, in Hz
 tau_mes = 100       #measurement mean time, in s
 
 
