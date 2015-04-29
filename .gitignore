@@ -1,5 +1,6 @@
 ## Ignore the following files
 *.pdf
+*.png
 *.dat
 *.DS_Store
 *.log

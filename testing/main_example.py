@@ -31,9 +31,9 @@ logger.info("Nouvelle version")
 vsm = VSM()
 
 # Set the vsm parameters
-vsm.H = (40, 1, 'cgs')
-vsm.phi = (0, 91, 40, 'deg')
-vsm.T = (100, 800, 5000, 'K')
+vsm.H = (40, 0.5, 'cgs')
+vsm.phi = (0, 91, 5, 'deg')
+vsm.T = (300, 1001, 1000, 'K')
 
 # Plotting
 vsm.plot_cycles = True
@@ -52,11 +52,11 @@ logger.info(vsm)
 
 # Then the sample
 #sample = create_sample(Stoner_Wohlfarth, 'sample')
-#sample = create_sample(Meiklejohn_Bean, 'sample')
+#sample = create_sample(Meiklejohn_Bean, 'nowsample')
 #sample = create_sample(Garcia_Otero, 'sample')
 #sample = create_sample(Franco_Conde, 'sample')
 #sample = create_sample(Rotatable_AF, 'sample')
-sample = create_sample(Double_MacroSpin, 'sample2')
+sample = create_sample(Double_MacroSpin, 'sample')
 
 # Set the sample parameters
 sample.theta = (1, 'deg')
@@ -111,8 +111,10 @@ print("J_ex S", sample.J_ex * sample.S)
 ################################################################################
 # Loading the sample into the VSM
 vsm.load(sample)
+
 # Measuring
 vsm.measure()
+
 
 
 # END OF PROGRAM

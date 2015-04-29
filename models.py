@@ -163,14 +163,16 @@ class Garcia_Otero(Meiklejohn_Bean):
 
     # No need to define energy, same as Meiklejohn_Bean
 
+
+
     def masking_energy(self, phiIdx, HIdx, eqIdx):
         """
             Method for masking all non-reachable states above the equilibrium.
             After searching all the available states, return the new equilibrium position.
             The non-reachable states are masqued in self.E
         """
-        ok = False      # Test result
-        while not ok:
+        # Loop over local minimum
+        while True:
             # No forgetting to unmask the array
             self.E[phiIdx, HIdx, :].mask = False
 
@@ -204,7 +206,7 @@ class Garcia_Otero(Meiklejohn_Bean):
             # If the minimum over the zone is the same that the eq energy
             if mini == self.E[phiIdx, HIdx, eqIdx]:
                 # finish the loop
-                ok = True
+                break
             else:
                 # new equilibrium
                 self.logger.warn("old eq {}".format(eqIdx))
@@ -317,7 +319,6 @@ class Franco_Conde(Garcia_Otero):
         return Mt, Ml
 
 
-# Initial : AntiFerro_rotatable, Franco_Conde, Ferro
 class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
     def __init__(self):
         # Initiating subclasses
@@ -334,6 +335,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(alph, th)
 
     # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
+    @profile
     def calculate_energy(self, vsm):
         """
             Calculate the energy for each parameters' values given by the vsm.
@@ -414,8 +416,193 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                 break
 
         # No forgetting to unmask the array
-        #E.mask = False
-        return N_eq[-1]
+        E.mask = False
+        return N_eq[-1], N_eq
+
+    # Debug plot
+    def debugplot_landscape(self, E, *argv, name='default', contour=True):
+        """
+            For debug : plot the energy landscape with successive position
+        """
+        # Nom du fichier
+        file = "{}.pdf".format(name)
+
+        # Création de la figure
+        fig = pl.figure()
+        ax = fig.add_subplot(111, aspect='equal')
+        ax.set_xlabel('theta')
+        ax.set_ylabel('alpha')
+
+        cax = ax.imshow(E,
+            interpolation = 'nearest',
+            origin='upper',
+            extent=(0,360,360,0)
+        )
+        cbar = fig.colorbar(cax)
+
+        if contour:
+            C = ax.contour(E, 10,
+                colors='black',
+                linewidth=.5,
+                extent=(0,360,0,360)
+            )
+            ax.clabel(C, inline=1, fontsize=10)
+
+        pl.grid()
+
+        if argv is not None:
+            for k, pos in enumerate(argv):
+                if pos.ndim == 1:
+                    ax.plot(pos[1]/E.shape[1]*360, pos[0]/E.shape[0]*360, 'ro')
+                else:
+                    ax.plot(pos[:, 1]/E.shape[1]*360, pos[:, 0]/E.shape[0]*360, '-go')
+
+        pl.savefig(file)
+        pl.close()
+
+
+    def labelling_mask(self, E, eqIdx):
+        """
+            Method for labelling the reachable zones, taking into account the periodicity of the landscape.
+            Returns a labelled mask.
+        """
+        # Shape of E[phiIdx, HIdx]
+        nb = np.array([self.alpha.size, self.theta.size])
+
+        # No forgetting to unmask the array
+        E.mask = False
+
+        # Masking all the values above energy state equilibrium
+        mask = E > E[eqIdx[0], eqIdx[1]] + np.log(self.f0 * self.tau_mes) * k_B * self.T
+
+        # Labeling the mask (0-> unreachable states ; 1,2,3, i..->ith zone)
+        mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
+
+        if False:
+            # Creating figure, with title
+            fig = pl.figure()
+            fig.set_size_inches(18.5,10.5)
+            #fig.suptitle("Model : {}, T = {}K, phi= {}deg, H = {} Oe".format(self.model, self.T, np.degrees(self.phi), np.round(convert_field(H, 'cgs'), 2)))
+
+            # Axis
+            ax = fig.add_subplot(111, aspect='equal')
+
+            cax1 = ax.imshow(mask_lab, label="Energy landscape", interpolation = 'nearest', origin='upper', alpha=0.6, extent=(0, 360, 360, 0))
+            cbar1 = fig.colorbar(cax1)
+
+            ax.plot(np.degrees(self.theta[eqIdx[1]]), np.degrees(self.alpha[eqIdx[0]]), 'bo', label='old Eq.')
+
+            #ax.set_title("id:{}".format(HIdx))
+            ax.set_xlabel("Theta M_f(deg)")
+            ax.set_ylabel("Alpha M_af(deg)")
+
+            # Saving the figure
+            pl.savefig("new/test_maskLab_T{}_{}_{}_{}".format(self.T, phiIdx, HIdx, k ))
+            pl.close()
+
+
+        ## Searching equivalent zones (the array is periodic)
+        # First scanning alpha boundaries
+        zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+        for i in np.arange(nb[0]):
+            left = mask_lab[i, 0]
+            right = mask_lab[i, -1]
+            if left and right and (left != right): #left and right not zero, and different labels
+                zones_equiv.add(tuple((min(left, right), max(left, right))))
+
+        # Converting the set to array
+        zones_equiv = np.array(list(zones_equiv))
+
+        # Relabeling the upper label to the equivalent lower label
+        for i, val in enumerate(zones_equiv):
+            # Creating a mask with only the upper label
+            mask_rm = mask_lab == val[1]
+            #to replace all the zone by le lower label
+            mask_lab[mask_rm] = val[0]
+
+        # Then, scanning theta boundaries
+        zones_equiv = set()     #set() to contain «unique» equivalent zone label;
+        for i in np.arange(nb[1]):
+            top = mask_lab[0, i]
+            bottom = mask_lab[-1, i]
+            if top and bottom and (top != bottom): #left and right not zero, and different labels
+                zones_equiv.add( tuple(    (min(top, bottom), max(top, bottom))       )    )
+
+        # Converting the set to array
+        zones_equiv = np.array(list(zones_equiv))
+
+        # Relabeling the upper label to the equivalent lower label
+        for i, val in enumerate(zones_equiv):
+            # Creating a mask with only the upper label
+            mask_rm = mask_lab == val[1]
+            #to replace all the zone by le lower label
+            mask_lab[mask_rm] = val[0]
+
+        # Renaming the last labels (not useful)
+        #labels = np.unique(z_lab)
+        #z_lab = np.searchsorted(labels, z_lab)
+
+        return mask_lab
+
+    def search_mountainCol(self, E, mask_lab, eqIdx):
+        """
+        Arguments :
+            E : accessible energy landscape
+            E_old : old accessible energy landscape, for comparison
+
+        Calculated :
+            r : searching area radius
+
+            Returns all the try indexes
+        """
+        # Shape of E[phiIdx, HIdx]
+        nb = np.array([self.alpha.size, self.theta.size])
+
+        if False:
+            dos = 'sample/'
+            self.debugplot_landscape(mask_lab, name='{}oldmask_eqIdx{}_{}'.format(dos, eqIdx[0], eqIdx[1]))
+
+        # Index where the actual equilibrium is
+        zonEq_label = mask_lab[eqIdx[0], eqIdx[1]]
+
+        # The old mask, only containing the reachable domain
+        mask_old = mask_lab == zonEq_label
+
+        # Minimum Average radius (case if the domain have a longer axis)
+        r2 = np.round(np.sqrt(mask_old.sum()/np.pi), 0)     # circular domain
+        r0 = np.max(mask_old.sum(axis=0))/2                 # alpha stretch domain
+        r1 = np.max(mask_old.sum(axis=1))/2                 # theta stretch domain
+        r = np.min([r0, r1, r2])
+
+        # Successive try index
+        tryIdx = np.array([eqIdx])
+
+        # Trying loop (infinite, with a stop at 10000 tries)
+        k = 0   # Loop number
+        i = 0   # position number
+        while True:
+            candidate = tryIdx[i, :] + np.random.randint(-r, r, size=2)
+            candidate = candidate % nb
+
+            if E[candidate[0], candidate[1]] is not np.ma.masked:
+                i +=1   # incrementing
+                tryIdx = np.append(tryIdx, [candidate], axis=0)   # adding the new position
+
+                # Testing if the try have changed zone
+                try_label = mask_lab[candidate[0], candidate[1]]
+
+                if try_label != zonEq_label and try_label != 0:
+                    # Reached a new zone
+                    break
+
+            k += 1
+            if k == 100000:
+                self.logger.warning("Random search not converging. Activate and check the debug map.")
+                break
+
+        return tryIdx[-1], tryIdx
+
+
 
     # Redefining from Garcia_Otero
     def masking_energy(self, phiIdx, HIdx, eqIdx):
@@ -424,86 +611,70 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             After searching all the available states, return the new equilibrium position.
             The non-reachable states are masqued in self.E
         """
-        ok = False      # Test result
 
         # Shape of E[phiIdx, HIdx]
         nb = np.array([self.alpha.size, self.theta.size])
 
         # Index of while loop
         k = 0
+
         # Loop
-        while not ok:
+        while True:
+            # Incrementing the counter
             k += 1
-            # No forgetting to unmask the array
-            self.E[phiIdx, HIdx, :, :].mask = False
 
-            # Masking all the values above energy state equilibrium
-            mask = self.E[phiIdx, HIdx, :, :] > self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]] + np.log(self.f0 * self.tau_mes) * k_B * self.T
-
-            # Labeling the mask (0-> unreachable states ; 1,2,3, i..->ith zone)
-            mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
-
-            ## Searching equivalent zones (the array is periodic)
-            # First scanning alpha boundaries
-            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
-            for i in np.arange(nb[0]):
-                left = mask_lab[i, 0]
-                right = mask_lab[i, -1]
-                if left and right and (left != right): #left and right not zero, and different labels
-                    zones_equiv.add(tuple((min(left, right), max(left, right))))
-
-            # Converting the set to array
-            zones_equiv = np.array(list(zones_equiv))
-
-            # Relabeling the upper label to the equivalent lower label
-            for i, val in enumerate(zones_equiv):
-                # Creating a mask with only the upper label
-                mask_rm = mask_lab == val[1]
-                #to replace all the zone by le lower label
-                mask_lab[mask_rm] = val[0]
-
-            # Then, scanning theta boundaries
-            zones_equiv = set()     #set() to contain «unique» equivalent zone label;
-            for i in np.arange(nb[1]):
-                top = mask_lab[0, i]
-                bottom = mask_lab[-1, i]
-                if top and bottom and (top != bottom): #left and right not zero, and different labels
-                    zones_equiv.add( tuple(    (min(top, bottom), max(top, bottom))       )    )
-
-            # Converting the set to array
-            zones_equiv = np.array(list(zones_equiv))
-
-            # Relabeling the upper label to the equivalent lower label
-            for i, val in enumerate(zones_equiv):
-                # Creating a mask with only the upper label
-                mask_rm = mask_lab == val[1]
-                #to replace all the zone by le lower label
-                mask_lab[mask_rm] = val[0]
-
-            # Renaming the last labels (not useful)
-            #labels = np.unique(z_lab)
-            #z_lab = np.searchsorted(labels, z_lab)
+            # Labelling the mask from the energy landscape
+            mask_lab = self.labelling_mask(self.E[phiIdx, HIdx], eqIdx)
 
             #Zone where the equilibrium is
             zone_eq = mask_lab[eqIdx[0], eqIdx[1]]
-            # Creating a new mask
-            new_mask = mask_lab != zone_eq
 
-            #Applying the mask
-            self.E[phiIdx, HIdx, new_mask] = np.ma.masked
+            # Creating a new mask, corresponding to the reachable zone
+            mask_eq = mask_lab == zone_eq
 
-            # Searching the minimum
+            #Applying the mask, masking all the unreachable states
+            self.E[phiIdx, HIdx, ~mask_eq] = np.ma.masked
+
+            # Searching the minimum over the zone
             mini = np.ma.min(self.E[phiIdx, HIdx, :, :])
+
             # If the minimum over the zone is the same that the eq energy
             if mini == self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]]:
-                # finish the loop
-                ok = True
+                # Finish the loop
+                break
+
             else:
-                # new equilibrium
-                #self.logger.warn("old eq {}".format(eqIdx))
-                eqIdx = self.E[phiIdx, HIdx, :, :].argmin()
-                eqIdx = np.array([np.floor(eqIdx / nb[1]), eqIdx % nb[1]])
-                #self.logger.warn("new eq {}".format(eqIdx))
+                # Getting the previous labelled mask
+                oldMask_lab = self.labelling_mask(np.ma.copy(self.E[phiIdx, HIdx - 1]), eqIdx)
+
+                # If only one zone
+                if np.unique(oldMask_lab).size == 2:
+                    # Calculate the global minimum
+                    minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])
+                    eqIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])
+                    break
+
+                else:
+                    # Going threw the landscape col
+
+                    # Debug plot
+                    if False:
+                        dos = 'sample/'
+                        self.debugplot_landscape(mask_lab, name='{}Masklab_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+
+                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], name='{}Elandscape_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+
+                    # Trying to jump over the saddle point, giving a new index (unstable)
+                    eqIdx, tries = self.search_mountainCol(self.E[phiIdx, HIdx], oldMask_lab, eqIdx)
+
+                    # Search stable equilibrium
+                    eqIdx, pathIdx = self.search_eq(self.E[phiIdx, HIdx], eqIdx)
+
+                # Debug plot
+                if False:
+                    dos = 'sample/'
+                    self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], tries, tries[-1], name='{}search_mountainPass_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+                    self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], pathIdx, eqIdx, name='{}search_eq_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
 
         return eqIdx
 
@@ -537,6 +708,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         return Mt, Ml
 
     # Redefining analyse_energy from Garcia_Otero
+    @profile
     def analyse_energy(self, vsm):
         """
             After calculating the energy depending on the parameters, search in which state is the magnetization.
@@ -576,7 +748,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
 
                     # Adjusting equilibrium
-                    eq = self.search_eq(self.E[i, j], eq)
+                    eq, pathIdx = self.search_eq(self.E[i, j], eq)
 
                     # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
                     eq = self.masking_energy(i, j, eq)

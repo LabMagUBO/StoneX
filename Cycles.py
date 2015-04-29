@@ -295,11 +295,11 @@ class Cycle(object):
                     ax = fig.add_subplot(111, aspect='equal')
 
                     cax1 = ax.imshow(E.data, label="Energy landscape", interpolation = 'nearest', origin='upper', alpha=0.6, extent=(0, 360, 360, 0))
-                    cax2 = ax.imshow(E, label="Reachable states", interpolation = 'nearest', origin='upper')
+                    cax2 = ax.imshow(E, label="Reachable states", interpolation = 'nearest', origin='upper', extent=(0, 360, 360, 0))
                     cbar1 = fig.colorbar(cax1)
                     cbar2 = fig.colorbar(cax2)
 
-                    C = ax.contour(E.data, 10, colors='black', linewidth=.5)
+                    C = ax.contour(E.data, 10, colors='black', linewidth=.5, extent=(0, 360, 0, 360))
                     #ax.clabel(C, inline=1, fontsize=10)
 
                     ax.plot(theta, alpha, 'ro', label='Eq.')

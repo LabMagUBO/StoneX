@@ -17,7 +17,7 @@
         — self.measure() : measure all energy states and determine the magnetization cycle
         — self.process_cycles() : plot all the graphs
 """
-
+import sys
 import numpy as np
 from StoneX.Physics import *
 from StoneX.Logging import *
@@ -174,12 +174,18 @@ class VSM(object):
         self.logger.info("Calculating energy...")
         #self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
         self.sample.calculate_energy(self)
+
+        self.logger.debug("Memory usage : sample {}Mib".format(sys.getsizeof(self.sample.E) * self.sample.E.size / 1024**2))
+        self.logger.warn(type(self.sample.E[0, 0, 0, 0]))
+        self.logger.warn(self.sample.E.shape)
+        self.logger.warn(self.sample.E.size)
         #
         self.logger.info("Analysing_energy...")
         self.sample.analyse_energy(self)
         #
         self.process_cycles()
 
+    @profile
     def process_cycles(self):
         """
             Analyse (ie calculate the coercive fields and others) the sample's cycles.
