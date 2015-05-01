@@ -170,23 +170,37 @@ class VSM(object):
         self.sample = sample
 
     def measure(self):
-        #
+        self.logger.info("Starting measuring {}".format(self.sample.name))
+
+        # Depending if the sample is single-domain or multiple domains
+        if type(self.sample) == 'Domain':
+            self.measure_domain(self.sample)
+
+        elif type(self.sample == 'Sample'):
+            for i, domain in enumerate(self.sample.domains):
+                self.measure_domain(domain)
+
+    def measure_domain(self, domain):
+        """
+            Method to measure a domain.
+        """
         self.logger.info("Calculating energy...")
         #self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
-        self.sample.calculate_energy(self)
+        domain.calculate_energy(self)
 
-        self.logger.debug("Memory usage : sample {}Mib".format(sys.getsizeof(self.sample.E) * self.sample.E.size / 1024**2))
-        self.logger.warn(type(self.sample.E[0, 0, 0, 0]))
-        self.logger.warn(self.sample.E.shape)
-        self.logger.warn(self.sample.E.size)
-        #
+        #self.logger.debug("Memory usage : sample {}Mib".format(sys.getsizeof(self.sample.E) * self.sample.E.size / 1024**2))
+        #self.logger.warn(type(self.sample.E[0, 0, 0, 0]))
+        #self.logger.warn(self.sample.E.shape)
+        #self.logger.warn(self.sample.E.size)
+
         self.logger.info("Analysing_energy...")
-        self.sample.analyse_energy(self)
+        domain.analyse_energy(self)
         #
-        self.process_cycles()
+        self.process_cycles(domain)
 
-    @profile
-    def process_cycles(self):
+
+    #@profile
+    def process_cycles(self, domain):
         """
             Analyse (ie calculate the coercive fields and others) the sample's cycles.
             All the calculated properties are stored in sample.attrib
@@ -196,20 +210,20 @@ class VSM(object):
                 – Mr1, Mr2
         """
         self.logger.info("Processing cycles...")
-        for k, rot in enumerate(self.sample.rotations):
+        for k, rot in enumerate(domain.rotations):
             rot.process()
-            rot.plot(self.sample.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)
+            rot.plot(domain.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)
 
             if self.export_data:
-                rot.export(self.sample.name)
+                rot.export(domain.name)
 
         if self.plot_T :
             # Creating a sample's attribute to contain the (Hc, He, Mr, Mt…)
-            self.sample.evolT = Tevol(self)
+            domain.evolT = Tevol(self)
 
-            self.sample.evolT.extract_data(self.sample.rotations)
+            domain.evolT.extract_data(domain.rotations)
 
-            self.sample.evolT.plot_H(self.sample.name)
+            domain.evolT.plot_H(domain.name)
 
             if self.export_data:
-                self.sample.evolT.export(self.sample.name)
+                domain.evolT.export(domain.name)

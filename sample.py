@@ -15,6 +15,7 @@
 """
 import os
 import shutil
+import copy
 import numpy as np
 from StoneX.Physics import *
 from StoneX.Logging import *
@@ -22,21 +23,26 @@ from StoneX.Cycles import *
 
 
 
-class Domain(object):
+class Domain_base():
     def __init__(self):
         # Creating logger for all children classes
         self.logger = init_log(__name__)
 
         # Initiating class
-        self.logger.debug("Init. Class Domain")
+        self.logger.debug("Init. Class Domain_base")
 
         # Volume
         self.V = 10e-9 * (100e-9)**2
         self.T = 0
 
+    def __str__(self):
+        txt = "Domain status :\n"
+        txt += "Base \n\t V = {:.2} m**3\n\t T = {} K\n".format(self.V, self.T)
+        return txt
 
 
-class Ferro(Domain):
+
+class Ferro(Domain_base):
     """
         Ferromagnetic domain.
         Different energies are coded :
@@ -59,6 +65,21 @@ class Ferro(Domain):
 
         # Theta
         self.theta = (1, 'deg')
+
+    def __str__(self):
+        txt = super().__str__()
+        txt += """
+Ferro :
+    theta : {} deg step
+    Ms = {} A/m
+    V_f = {:.3} m**3
+    K_f = {} J/m**3
+    gamma_f = {} deg
+    K_bq = {} J/m**3
+    gamma_bq = {} deg
+                """.format(np.degrees(self.theta[1] - self.theta[0]), self.Ms, self.V_f, self.K_f, np.degrees(self.gamma_f), self.K_bq, np.degrees(self.gamma_bq))
+        return txt
+
 
     @property
     def theta(self):
@@ -89,13 +110,22 @@ class Ferro(Domain):
         return lambda phi, H, th: zeeman(phi, H, th) + uniaxial(th) + biquadratic(th)
 
 
-class AntiFerro(Domain):
+class AntiFerro(Domain_base):
     def __init__(self):
         super().__init__()
         self.logger.debug("Init. Class AntiFerro")
 
         self.gamma_af = 0
         self.V_af = self.V * 0.9
+
+    def __str__(self):
+        txt = super().__str__()
+        txt += """
+Anti-Ferro :
+    V_af = {:.3} m**3
+    gamma_af = {} deg
+                """.format(self.V_af, np.degrees(self.gamma_af))
+        return txt
 
     # No energy function.
 
@@ -107,6 +137,15 @@ class AntiFerro_Rotatable(AntiFerro):
 
         self.alpha = (1, 'deg')
         self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9) / 2 * 100 # K_f * 10
+
+    def __str__(self):
+        txt = super().__str__()
+        txt +="""
+    Rotatable:
+        alpha = {} deg step
+        K_af = {} J/m**3
+        """.format(np.degrees(self.alpha[1] - self.alpha[0]), self.K_af)
+        return txt
 
     @property
     def alpha(self):
@@ -143,34 +182,47 @@ class AntiFerro_Spin(AntiFerro_Rotatable):
 
         self.M_af = self.Ms * 50/100        # 1% of the F magnetization
 
-    # Same property as AntiFerro_rotatable
+    def __str__(self):
+        txt = super().__str__()
+        txt +="""
+    AF magnetization:
+        M_af = {} A/m
+        """.format(self.M_af)
+        return txt
 
+    # Same property as AntiFerro_rotatable
     def energy(self):
         zeeman = lambda phi, H, alph: - mu_0 * H * self.V_af * self.M_af * np.cos(alph - phi)
         return lambda phi, H, alph: zeeman(phi, H, alph) + AntiFerro_Rotatable.energy(self)(alph)
 
 
-def create_sample(model, name='test'):
+def create_domain(model, name='test', mkdir=True):
     """
+        Domain creation.
         List of available models
         — Stoner_Wohlfarth
         — Meiklejohn_Bean
         — Garcia_Otero
         — Franco_Conde
         — Rotatable_AF
+        — ...
     """
 
-    class Sample(model):
+    class Domain(model):
         def __init__(self):
             # Initialization of the subclass
             super().__init__()
 
             self.name = name
 
-            self.create_folder(name)
+            if mkdir: self.create_folder(name)
 
         def __str__(self):
-            return "Sample's model: {}".format(self.model)
+            txt = super().__str__()
+            txt += """
+Model : {}
+                """.format(self.model)
+            return txt
 
         def create_folder(self, name):
             """
@@ -199,4 +251,87 @@ def create_sample(model, name='test'):
                     sys.exit(0)
 
 
-    return Sample()
+    return Domain()
+
+def create_sample(domain, n):
+    """
+        Sample creation
+        n : number of domain
+    """
+    class Sample(object):
+        def __init__(self, nDomain):
+            # Creating logger
+            self.logger = init_log(__name__)
+            self.logger.info("Init. Sample class")
+
+            self.model = domain.model
+            self.name = domain.name
+            self.domains = np.zeros(nDomain, dtype=object)
+
+            #self.create_folder(name)
+
+            for i in np.arange(self.domains.size):
+                folder = "{}/domain{}".format(self.name, i)
+                self.create_folder(folder)
+                self.domains[i] = copy.copy(domain)
+                self.domains[i].name = folder
+
+        def __str__(self):
+            txt = """
+    Sample :
+        Model : {}
+        Number of domains : {}
+        Folder : {}
+                """.format(self.model, self.domains.size, self.name)
+            return txt
+
+        def measure(self, vsm):
+            for i, domain in enumerate(self.domains):
+                # Loading the domain into the VSM
+                vsm.load(domain)
+
+                # Measuring
+                vsm.measure()
+
+        def create_folder(self, name):
+            """
+                Create the folder for data exportation.
+            """
+            if not os.path.exists(name):
+                os.makedirs(name)
+                self.logger.info("Creating folder for plotting '{}'.".format(name))
+            else:
+                self.logger.info("Folder '{}' exists.".format(name))
+                # On demande quoi faire
+                yes_choice = np.array(['O', 'o', '', 'oui'])
+                no_choice = np.array(['n', 'N', 'non'])
+                answer = input("Voulez-vous l'effacer? [Y/n]\n?")
+
+                if answer in yes_choice:
+                    self.logger.info("Okayy... To the trash.")
+                    shutil.rmtree(name)
+                    self.logger.info("Creating folder '{}'.".format(name))
+                    os.makedirs(name)
+                elif answer in no_choice:
+                    self.logger.info("Promise, I keep it.")
+                else:
+                    self.logger.error("Not the right answer.")
+                    self.logger.warn("I quit.")
+                    sys.exit(0)
+
+        def sum_domains(self):
+            """
+                Sum all the domains cycles.
+            """
+            self.rotations = copy.copy(self.domains[0].rotations)
+
+            for i, domain in enumerate(self.domains):
+                if i == 0: continue
+                for j, rot in enumerate(self.rotations):
+                    rot.sum(self.domains[i].rotations[j])
+
+            # Then, recalculating each rotation parameters
+            for i, rot in enumerate(self.rotations):
+                rot.process()
+
+    return Sample(n)

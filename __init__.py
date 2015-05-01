@@ -3,6 +3,7 @@
 
 # Version of the program
 __version__ = '0.4, 2015-02-27'
+version='ani'
 
 ## General modules
 # Can't work without

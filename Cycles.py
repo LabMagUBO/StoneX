@@ -58,6 +58,29 @@ class Cycle(object):
         self.model = sample.model
         self.Ms = sample.Ms
 
+    def sum(self, cycl):
+        """
+            Method for summing two Cycle objects.
+            Only sums Mt & Ml.
+        """
+        try:
+            if not (self.data[:, 0] == cycl.data[:, 0]).all():
+                self.logger.error("The cycles does not have the same field values.")
+                self.logger.warn("Summing anyway.")
+
+        except AttributeError as err:
+            self.logger.error("Error when summing the cycles. The data does not have the same shape.\n{}".format(err))
+            self.logger.critical("Stopping the program.")
+            sys.exit(0)
+
+        # Summing Mt & Ml
+        #self.data[:, 1:3] += cycl.data[:, 1:3]
+        self.data[:, 1] = self.data[:, 1] + cycl.data[:, 1]
+        self.data[:, 2] = self.data[:, 2] + cycl.data[:, 2]
+
+        # Erasing the rest
+        self.data[:, 3:] = None
+
     def calc_properties(self):
         """
             Calculate, depending of self.data :
@@ -377,17 +400,16 @@ class Rotation(object):
             Arguments :
                 — phiTab : phi array
 
-            sel.data : [cycle.phi, Hc, He, Mr1, Mr2, Mt1, Mt2]
+            self.data : [cycle.phi, Hc, He, Mr1, Mr2, Mt1, Mt2]
         """
         # Creating logger for all children classes
         self.logger = init_log(__name__)
 
-        # Data rotation (phi, Hc, He, Mr1, Mr2, Mt_max, Mt_min)
-        self.data = np.zeros((phiTab.size, 7))
         # Storing phiTab
-        self.data[:, 0] = phiTab
-        self.cycles = np.empty(phiTab.size, dtype='object')
+        self.phi = phiTab
 
+        # Creating the cycles array
+        self.cycles = np.empty(phiTab.size, dtype='object')
 
     def info(self, sample):
         """
@@ -396,6 +418,33 @@ class Rotation(object):
         self.T = sample.T
         self.model = sample.model
         self.Ms = sample.Ms
+
+    def sum(self, rot):
+        """
+            Method for summing two Rotation objects.
+        """
+        print("summing")
+        # Checking if the Rotations are at the same temperature
+        if (self.T != rot.T):
+            self.logger.warn("Sum two rotations with different temperature.")
+
+        try:
+            if not (self.phi == rot.phi).all():
+                self.logger.error("The rotations does not have the same phi values.")
+                self.logger.warn("Summing anyway.")
+
+        except AttributeError as err:
+            self.logger.error("The rotations does not seem tohave the same phi array.\n{}".format(err))
+
+        if self is rot:
+            print("same rot")
+
+        # Summing
+        for i, cycle in enumerate(self.cycles):
+            cycle.sum(rot.cycles[i])
+
+
+
 
 
     def plot(self, path, plot_azimuthal=True, plot_cycles=True, plot_energyPath=True, plot_energyLandscape=True):
@@ -457,8 +506,13 @@ class Rotation(object):
 
     def process(self):
         """
-
+            Calculate the properties for each cycle of the rotation.
+            The results are stored in self.data
         """
+        # Data rotation (phi, Hc, He, Mr1, Mr2, Mt_max, Mt_min)
+        self.data = np.zeros((self.phi.size, 7))
+        self.data[:, 0] = self.phi
+
         for i, cycle in enumerate(self.cycles):
             cycle.calc_properties()
 

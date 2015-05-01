@@ -93,11 +93,11 @@ class Stoner_Wohlfarth(Ferro):
         """
 
         # Creating an array for temperature change. Only one possible value : T=0K
-        self.rotation = np.zeros(1, dtype='object')
+        self.rotations = np.zeros(1, dtype='object')
 
         # Data stored in Rotation object.
-        self.rotation[0] = Rotation(vsm.phi)
-        self.rotation[0].info(self)
+        self.rotations[0] = Rotation(vsm.phi)
+        self.rotations[0].info(self)
 
         # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
         eq = np.argmin(self.E[0, 0])
@@ -128,7 +128,7 @@ class Stoner_Wohlfarth(Ferro):
 
 
 # Initial : Stoner_Wohlfarth, AntiFerro, Ferro
-class Meiklejohn_Bean(Stoner_Wohlfarth, AntiFerro):
+class Meiklejohn_Bean(AntiFerro, Stoner_Wohlfarth):
     def __init__(self):
         super().__init__()
 
@@ -335,7 +335,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(alph, th)
 
     # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
-    @profile
+    #@profile
     def calculate_energy(self, vsm):
         """
             Calculate the energy for each parameters' values given by the vsm.
@@ -708,7 +708,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         return Mt, Ml
 
     # Redefining analyse_energy from Garcia_Otero
-    @profile
+    #@profile
     def analyse_energy(self, vsm):
         """
             After calculating the energy depending on the parameters, search in which state is the magnetization.
