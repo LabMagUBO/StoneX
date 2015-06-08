@@ -173,13 +173,27 @@ class VSM(object):
         self.logger.info("Starting measuring {}".format(self.sample.name))
 
         # Depending if the sample is single-domain or multiple domains
-        if type(self.sample) == 'Domain':
+        classname = self.sample.__class__.__name__
+
+        if classname == 'Domain':
             self.measure_domain(self.sample)
 
-        elif type(self.sample == 'Sample'):
+        elif classname == 'Sample':
             for i, domain in enumerate(self.sample.domains):
                 self.measure_domain(domain)
 
+            # Summing all the cycles' domains
+            self.sample.sum_domains()
+
+            # Overriding the plotting commands
+            self.plot_cycles = True
+            self.plot_energyPath = False        # not possible
+            self.plot_energyLandscape = False   # not possible
+
+            # Processing the sample
+            self.process_cycles(self.sample)
+
+    #@profile
     def measure_domain(self, domain):
         """
             Method to measure a domain.
@@ -197,6 +211,9 @@ class VSM(object):
         domain.analyse_energy(self)
         #
         self.process_cycles(domain)
+
+        # Freeing memory
+        #del(domain.E)
 
 
     #@profile

@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    Main program.
+    Main program file.
+    Example of Stoner Wohlfarth.
+
     StoneX V1.0 compatible
 """
 
@@ -19,6 +21,7 @@ sys.path.append(module_path)
 # Importing StoneX module
 import StoneX
 import numpy as np
+from matplotlib import pylab as pl
 
 ## Activate logging (cleaning the log on the first logger)
 logger = StoneX.init_log(__name__, console_level='debug', file_level='debug', mode='w')
@@ -32,16 +35,16 @@ logger.info("Program version {}".format(StoneX.__version__))
 vsm = StoneX.VSM()
 
 # Set the vsm parameters
-vsm.H = (30, 0.5, 'cgs')
-vsm.phi = (5, 91, 100, 'deg')
-vsm.T = (10, 1001, 100, 'K')
+vsm.H = (0.5/StoneX.mu_0, 0.01/StoneX.mu_0, 'si')
+vsm.phi = (0, 91, 45, 'deg')
+vsm.T = (300, 1001, 1000, 'K')
 
 # Plotting
 vsm.plot_cycles = True
 vsm.plot_azimuthal = False
 vsm.plot_energyPath = False
 vsm.plot_energyLandscape = False    #Takes a lot of time
-vsm.plot_T = True
+vsm.plot_T = False
 
 # Export
 vsm.export_data = True
@@ -55,33 +58,55 @@ logger.info(vsm)
 ################################################################################
 # First, we create a specific domain, changing if necessary the parameters
 # Models available : Stoner_Wohlfarth, Meiklejohn_Bean, Garcia_Otero, Franco_Conde, Rotatable_AF, Double_MacroSpin
-domain = StoneX.create_domain(StoneX.Rotatable_AF, 'sample')
-domain.T = 100
-domain.theta = (1, 'deg')
+domain = StoneX.create_domain(StoneX.Stoner_Wohlfarth, 'sample')
 
-if domain.model == 'Rotatable_AF':
-    domain.alpha = (2, 'deg')
-    domain.S = (200e-9)**2
-    domain.V_f = 10e-9 * domain.S
-    domain.V_af = 80e-9 * domain.S
-    domain.K_f = 400
-    domain.K_af = 110
-    domain.J_ex = 1e-6
+# Setting the temperature
+domain.T = 0
 
-    domain.Ms = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)
-    #sample.M_af = 1/1000 * sample.Ms * sample.V_af / sample.V_f
+# Theta step
+domain.theta = (0.1, 'deg')
 
-print(domain.V_af)
+# Setting the physical parameters
+domain.Ms = 1.4e6       # Magnetization in A/m
+r = 2e-9               # radius of the particule, in meter
+domain.V_f = 4/3*np.pi * r**3
+domain.K_f =  1e5     # Uniaxial anisotropy, in J/m**3
+domain.gamma_f = 0        # Uniaxial anisotropy direction, in radians
+domain.K_bq = 0
+domain.gamma_bq = 0
+domain.K_iso = 0
 
-# Then we create a sample based on the domain
-n = 50
-sample = StoneX.create_sample(domain, n)
+print(domain)
 
-for i, t in enumerate(np.random.normal(50, 20, n)):
-    logger.info("N: {}, thickness t = {}nm".format(i, t))
-    sample.domains[i].V_af = domain.S * t *1e-9
+## Then we create a sample based on the domain
+# Distribution parameters
+N = 1000
+xMin = np.log(0.03)/np.log(10)
+xMax = np.log(5) / np.log(10)
+nx = 10
+mu = 2
+sigma = 10
+
+# LogNormal distribution
+R = np.logspace(xMin, xMax, nx)
+X, m, s = StoneX.lognormale(R, mu, sigma)
+
+logger.info("""Distribution de probabilité
+        Normale : mu = {}, sigma = {}
+        Log-normale : m = {}, s = {}""".format(mu, sigma, m, s))
+
+# Creating the sample
+Density = N * X
+sample = StoneX.create_sample(domain, Density)
+
+if True:
+    pl.plot(R, np.around(X * N), '-ro')
+    pl.savefig('sample/distrib.pdf', dpi=100)
 
 
+for i, radius in enumerate(R):
+    sample.domains[i].V_f = 4/3 * np.pi * (radius * 1e-9)**3
+    #print(sample.domains[i].V_f)
 
 ################################################################################
 # MEASUREMENTS

@@ -3,11 +3,12 @@
 
 # Version of the program
 __version__ = '0.4, 2015-02-27'
-version='ani'
+
 
 ## General modules
 # Can't work without
 import numpy as np
+from matplotlib import pylab as pl
 
 ## StoneX modules
 from StoneX.Logging import *            # Log functions & logger creation

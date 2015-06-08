@@ -29,8 +29,6 @@ from StoneX.Sample import *
 #from StoneX.constants import *
 
 
-
-
 class Stoner_Wohlfarth(Ferro):
     def __init__(self):
         super().__init__()
@@ -68,6 +66,7 @@ class Stoner_Wohlfarth(Ferro):
         while not found:
             k += 1
 
+            #print("calc barrier")
             barrier = np.array([E[ (eq - 1) % E.size] - E[eq], E[ (eq + 1) % E.size] - E[eq]])
 
             if (barrier >= 0).all():
@@ -82,6 +81,8 @@ class Stoner_Wohlfarth(Ferro):
 
             if k == 10000:
                 self.logger.error("search_eq : Not converging.")
+                pl.plot(E, '-ro')
+                pl.show()
                 break
 
         return eq
@@ -116,7 +117,9 @@ class Stoner_Wohlfarth(Ferro):
                 eq = self.search_eq(self.E[i, j, :], eq)
 
                 cycle.data[j] = np.array([H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi), self.Ms * self.V_f * np.cos(self.theta[eq] - phi), self.theta[eq]])
-                cycle.energy[j] = np.ma.copy(self.E[i, j])
+
+                # No need to save energy data
+                #cycle.energy[j] = np.ma.copy(self.E[i, j])
 
             # Saving the cycle
             self.rotations[0].cycles[i] = cycle
@@ -213,7 +216,6 @@ class Garcia_Otero(Meiklejohn_Bean):
                 eqIdx = self.E[phiIdx, HIdx, :].argmin()
                 self.logger.warn("new eq {}".format(eqIdx))
 
-
         return eqIdx
 
     def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
@@ -260,6 +262,8 @@ class Garcia_Otero(Meiklejohn_Bean):
                 for j, H in enumerate(vsm.H):
                     # A little verbose
                     #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+                    # Unmasking the energy
+                    self.E[i, j, :].mask = False
 
                     # Adjusting equilibrium
                     eq = self.search_eq(self.E[i, j], eq)
@@ -332,7 +336,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
     # Redefining the energy function
     def energy(self):
         exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
-        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_rotatable.energy(self)(alph) + exchange(alph, th)
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_Rotatable.energy(self)(alph) + exchange(alph, th)
 
     # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
     #@profile
@@ -497,7 +501,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             ax.set_ylabel("Alpha M_af(deg)")
 
             # Saving the figure
-            pl.savefig("new/test_maskLab_T{}_{}_{}_{}".format(self.T, phiIdx, HIdx, k ))
+            pl.savefig("sampleRA/test_maskLab_T{}_{}_{}.pdf".format(self.T, eqIdx[0], eqIdx[1] ))
             pl.close()
 
 
@@ -558,8 +562,11 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         # Shape of E[phiIdx, HIdx]
         nb = np.array([self.alpha.size, self.theta.size])
 
+        # Initial energy level
+        E_ini = E[eqIdx[0], eqIdx[1]]
+
         if False:
-            dos = 'sample/'
+            dos = 'sampleRA/'
             self.debugplot_landscape(mask_lab, name='{}oldmask_eqIdx{}_{}'.format(dos, eqIdx[0], eqIdx[1]))
 
         # Index where the actual equilibrium is
@@ -572,7 +579,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         r2 = np.round(np.sqrt(mask_old.sum()/np.pi), 0)     # circular domain
         r0 = np.max(mask_old.sum(axis=0))/2                 # alpha stretch domain
         r1 = np.max(mask_old.sum(axis=1))/2                 # theta stretch domain
-        r = np.min([r0, r1, r2])
+        r = np.ceil(np.min([r0, r1, r2]))
 
         # Successive try index
         tryIdx = np.array([eqIdx])
@@ -585,7 +592,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             candidate = candidate % nb
 
             if E[candidate[0], candidate[1]] is not np.ma.masked:
-                i +=1   # incrementing
+                i +=1   # incrementing candidate index
                 tryIdx = np.append(tryIdx, [candidate], axis=0)   # adding the new position
 
                 # Testing if the try have changed zone
@@ -594,15 +601,27 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                 if try_label != zonEq_label and try_label != 0:
                     # Reached a new zone
                     break
+                elif E[candidate[0], candidate[1]] < E_ini:
+                    # Find a lower energy state
+                    break
 
-            k += 1
-            if k == 100000:
+            k += 1     # incrementing loop index
+            if k % 10000 == 0:
+                self.logger.warn( "Nb loop : {}".format(k))
+                break
+                if False:
+                    print("plotting")
+                    dos = 'sampleRA/'
+                    self.debugplot_landscape(mask_old, tryIdx[-100:], name='{}oldmask_eqIdx{}_{}_{}'.format(dos, eqIdx[0], eqIdx[1], k))
+
+                    sys.exit(0)
+
+            if k == 300000:
                 self.logger.warning("Random search not converging. Activate and check the debug map.")
+
                 break
 
         return tryIdx[-1], tryIdx
-
-
 
     # Redefining from Garcia_Otero
     def masking_energy(self, phiIdx, HIdx, eqIdx):
@@ -655,26 +674,36 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     break
 
                 else:
-                    # Going threw the landscape col
+                    # Going through the landscape col
 
                     # Debug plot
-                    if False:
-                        dos = 'sample/'
-                        self.debugplot_landscape(mask_lab, name='{}Masklab_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+                    debugPlot = False
+                    if debugPlot:
+                        dos = 'sampleRA/'
+                        self.debugplot_landscape(oldMask_lab, eqIdx, name='{}T{}_H{}_k{}_1oldMasklab'.format(dos, self.T, HIdx, k))
 
-                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], name='{}Elandscape_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(mask_lab, name='{}T{}_H{}_k{}_2Masklab'.format(dos, self.T, HIdx, k))
+
+                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], eqIdx, name='{}T{}_H{}_k{}_3Elandscape'.format(dos, self.T, HIdx, k))
 
                     # Trying to jump over the saddle point, giving a new index (unstable)
                     eqIdx, tries = self.search_mountainCol(self.E[phiIdx, HIdx], oldMask_lab, eqIdx)
 
+                    # Debug plot
+                    if debugPlot:
+                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], tries, tries[-1], name='{}T{}_H{}_k{}_4search_mountainPass'.format(dos, self.T, HIdx, k))
+
                     # Search stable equilibrium
                     eqIdx, pathIdx = self.search_eq(self.E[phiIdx, HIdx], eqIdx)
 
-                # Debug plot
-                if False:
-                    dos = 'sample/'
-                    self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], tries, tries[-1], name='{}search_mountainPass_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
-                    self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], pathIdx, eqIdx, name='{}search_eq_T{}_H{}_{}'.format(dos, self.T, HIdx, k))
+                    # Debug plot
+                    if debugPlot:
+                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], pathIdx, eqIdx, name='{}T{}_H{}_k{}_5search_eq'.format(dos, self.T, HIdx, k))
+
+            # If too much loop
+            if k > 1000:
+                self.logger.error("Too much loop in masking energy. Unable to find the local minimum.")
+                break
 
         return eqIdx
 
@@ -758,7 +787,10 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
                     # Storing the results (H, Mt, Ml, theta, alpha)
                     cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.alpha[eq[0]]])
-                    cycle.energy[j] = np.ma.copy(self.E[i, j])
+
+                    # Storing the energy landscape
+                    if vsm.plot_energyLandscape or vsm.plot_energyPath:
+                        cycle.energy[j] = np.ma.copy(self.E[i, j])
 
                 # Saving the cycle
                 self.rotations[k].cycles[i] = cycle

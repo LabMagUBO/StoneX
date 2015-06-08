@@ -58,10 +58,11 @@ class Cycle(object):
         self.model = sample.model
         self.Ms = sample.Ms
 
-    def sum(self, cycl):
+    def sum(self, cycl, selfdensity, density):
         """
             Method for summing two Cycle objects.
             Only sums Mt & Ml.
+            The density is the weight factor for the second cycle.
         """
         try:
             if not (self.data[:, 0] == cycl.data[:, 0]).all():
@@ -74,9 +75,7 @@ class Cycle(object):
             sys.exit(0)
 
         # Summing Mt & Ml
-        #self.data[:, 1:3] += cycl.data[:, 1:3]
-        self.data[:, 1] = self.data[:, 1] + cycl.data[:, 1]
-        self.data[:, 2] = self.data[:, 2] + cycl.data[:, 2]
+        self.data[:, 1:3] = self.data[:, 1:3] * selfdensity + cycl.data[:, 1:3] * density
 
         # Erasing the rest
         self.data[:, 3:] = None
@@ -161,13 +160,13 @@ class Cycle(object):
         ax3.set_ylabel('Mag. Moment (micro emu)')
 
         # Displaying Hc and Hc (in Oe)
-        Hc = convert_field(round((self.H_coer[1] - self.H_coer[0]) / 2, 2), 'cgs')
-        He = convert_field(round((self.H_coer[1] + self.H_coer[0]) / 2, 2), 'cgs')
+        Hc = np.abs(convert_field((self.H_coer[1] - self.H_coer[0]) / 2, 'cgs'))
+        He = convert_field((self.H_coer[1] + self.H_coer[0]) / 2, 'cgs')
         y_lim = ax.get_ylim()
         x_lim = ax.get_xlim()
         x_text = (x_lim[1] - x_lim[0]) * 0.15 + x_lim[0]
         y_text = (y_lim[1] - y_lim[0]) * 0.8 + y_lim[0]
-        ax.text(x_text, y_text, "Hc = {0}Oe\nHe = {1}Oe".format(Hc, He), style='italic', bbox={'facecolor':'white', 'alpha':1, 'pad':10})
+        ax.text(x_text, y_text, "Hc = {:.3}Oe\nHe = {:.3}Oe".format(Hc, He), style='italic', bbox={'facecolor':'white', 'alpha':1, 'pad':10})
 
         # Exporting graph as pdf
         file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
@@ -419,11 +418,11 @@ class Rotation(object):
         self.model = sample.model
         self.Ms = sample.Ms
 
-    def sum(self, rot):
+    def sum(self, rot, selfdensity, density):
         """
             Method for summing two Rotation objects.
         """
-        print("summing")
+        print("rot sum", density)
         # Checking if the Rotations are at the same temperature
         if (self.T != rot.T):
             self.logger.warn("Sum two rotations with different temperature.")
@@ -436,12 +435,12 @@ class Rotation(object):
         except AttributeError as err:
             self.logger.error("The rotations does not seem tohave the same phi array.\n{}".format(err))
 
-        if self is rot:
-            print("same rot")
+        #if self is rot:
+            #print("same rot")
 
         # Summing
         for i, cycle in enumerate(self.cycles):
-            cycle.sum(rot.cycles[i])
+            cycle.sum(rot.cycles[i], selfdensity, density)
 
 
 
@@ -468,6 +467,11 @@ class Rotation(object):
                 self.logger.info("Plotting energy landscape...")
                 cycle.plot_energyLandscape(path)
 
+            # Freeing memory
+            if hasattr(cycle, 'energy'):
+                del(cycle.energy)
+
+
         # Plotting azimuthal
         if plot_azimuthal:
             # Plotting azimutal data
@@ -478,12 +482,12 @@ class Rotation(object):
             fig.set_size_inches(18.5,18.5)
             coer = fig.add_subplot(221, polar=True)
             coer.grid(True)
-            coer.plot(data[:, 0], np.abs(data[:, 1]), 'ro-', label='Hc (Oe)')
+            coer.plot(data[:, 0], convert_field(np.abs(data[:, 1]), 'cgs'), 'ro-', label='Hc (Oe)')
             coer.legend()
 
             ex = fig.add_subplot(222, polar=True)
             ex.grid(True)
-            ex.plot(data[:, 0], np.abs(data[:, 2]), 'bo-', label='He (Oe)')
+            ex.plot(data[:, 0], convert_field(np.abs(data[:, 2]), 'cgs'), 'bo-', label='He (Oe)')
             ex.legend()
 
             rem = fig.add_subplot(224, polar = True)

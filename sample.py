@@ -37,7 +37,12 @@ class Domain_base():
 
     def __str__(self):
         txt = "Domain status :\n"
-        txt += "Base \n\t V = {:.2} m**3\n\t T = {} K\n".format(self.V, self.T)
+        txt += """
+        Base
+            V = {:.2} m**3 = {:.2} nm**3
+            T = {} K
+            25 k_B T = {} J
+            """.format(self.V, self.V * 1e27, self.T, 25*k_B*self.T)
         return txt
 
 
@@ -62,6 +67,7 @@ class Ferro(Domain_base):
         self.gamma_f = 0
         self.K_bq = 0
         self.gamma_bq = 0
+        self.K_iso = 0      #isotropy energy
 
         # Theta
         self.theta = (1, 'deg')
@@ -72,12 +78,24 @@ class Ferro(Domain_base):
 Ferro :
     theta : {} deg step
     Ms = {} A/m
-    V_f = {:.3} m**3
+    V_f = {:.3} m**3 = {:.3} nm**3
     K_f = {} J/m**3
     gamma_f = {} deg
     K_bq = {} J/m**3
     gamma_bq = {} deg
-                """.format(np.degrees(self.theta[1] - self.theta[0]), self.Ms, self.V_f, self.K_f, np.degrees(self.gamma_f), self.K_bq, np.degrees(self.gamma_bq))
+    K_f V_f = {} J
+    K_f V_f / (25k_B) = T_B = {} K
+                """.format(
+                            np.degrees(self.theta[1] - self.theta[0]),
+                            self.Ms, self.V_f,
+                            self.V_f * 1e27,
+                            self.K_f,
+                            np.degrees(self.gamma_f),
+                            self.K_bq,
+                            np.degrees(self.gamma_bq),
+                            (self.K_f * self.V_f / 2),
+                            self.K_f * self.V_f / ( 25 * k_B)
+                        )
         return txt
 
 
@@ -104,10 +122,11 @@ Ferro :
             self._theta = np.arange(0, 2*np.pi, step)
 
     def energy(self):
+        isotropic = lambda phi, th: self.K_iso * self.V_f * np.sin(th - phi)**2
         zeeman = lambda phi, H, th: - mu_0 * H * self.V_f * self.Ms * np.cos(th - phi)
         uniaxial = lambda th: self.K_f * self.V_f * np.sin(th - self.gamma_f)**2
         biquadratic = lambda th: self.K_bq * self.V_f * np.sin(th - self.gamma_bq)**2 * np.cos(th - self.gamma_bq)**2
-        return lambda phi, H, th: zeeman(phi, H, th) + uniaxial(th) + biquadratic(th)
+        return lambda phi, H, th: zeeman(phi, H, th) + uniaxial(th) + biquadratic(th) + isotropic(phi, th)
 
 
 class AntiFerro(Domain_base):
@@ -137,6 +156,7 @@ class AntiFerro_Rotatable(AntiFerro):
 
         self.alpha = (1, 'deg')
         self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9) / 2 * 100 # K_f * 10
+        self.Bq_af = 0      # Biquadratic anisotropy
 
     def __str__(self):
         txt = super().__str__()
@@ -144,7 +164,9 @@ class AntiFerro_Rotatable(AntiFerro):
     Rotatable:
         alpha = {} deg step
         K_af = {} J/m**3
-        """.format(np.degrees(self.alpha[1] - self.alpha[0]), self.K_af)
+
+        V_af K_af = {} J
+        """.format(np.degrees(self.alpha[1] - self.alpha[0]), self.K_af, self.K_af * self.V_af)
         return txt
 
     @property
@@ -171,7 +193,8 @@ class AntiFerro_Rotatable(AntiFerro):
 
     def energy(self):
         uniaxial = lambda alph: self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
-        return uniaxial
+        biquadratic = lambda alph: self.Bq_af * self.V_af * np.sin(2*(alph - self.gamma_af))**2
+        return lambda alph: uniaxial(alph) + biquadratic(alph)
 
 
 class AntiFerro_Spin(AntiFerro_Rotatable):
@@ -253,26 +276,28 @@ Model : {}
 
     return Domain()
 
-def create_sample(domain, n):
+def create_sample(domain, d):
     """
         Sample creation
-        n : number of domain
+        d : density of domain
     """
     class Sample(object):
-        def __init__(self, nDomain):
+        def __init__(self, density):
             # Creating logger
             self.logger = init_log(__name__)
             self.logger.info("Init. Sample class")
 
             self.model = domain.model
             self.name = domain.name
-            self.domains = np.zeros(nDomain, dtype=object)
+            self.domains = np.zeros(d.size, dtype=object)
 
-            #self.create_folder(name)
+            # Density: number for each domain
+            self.density = density
 
+            self.logger.info("Creating {} domain folders, under '{}/'".format(self.domains.size, self.name))
             for i in np.arange(self.domains.size):
                 folder = "{}/domain{}".format(self.name, i)
-                self.create_folder(folder)
+                self.create_folder(folder, verbose=False)
                 self.domains[i] = copy.copy(domain)
                 self.domains[i].name = folder
 
@@ -293,13 +318,14 @@ def create_sample(domain, n):
                 # Measuring
                 vsm.measure()
 
-        def create_folder(self, name):
+        def create_folder(self, name, verbose=True):
             """
                 Create the folder for data exportation.
             """
             if not os.path.exists(name):
                 os.makedirs(name)
-                self.logger.info("Creating folder for plotting '{}'.".format(name))
+                if verbose:
+                    self.logger.info("Creating folder for plotting '{}'.".format(name))
             else:
                 self.logger.info("Folder '{}' exists.".format(name))
                 # On demande quoi faire
@@ -323,15 +349,23 @@ def create_sample(domain, n):
             """
                 Sum all the domains cycles.
             """
+            # Creating a new rotations array for the sample from the first domain rotations (deepcopy needed for recurcive copy)
             self.rotations = copy.copy(self.domains[0].rotations)
 
+            # Nulling the array by self-substracting
+            #self.rotations.sum(self.domains[0].rotations, -1)
+
+            # Adding each domains rotation cycles
             for i, domain in enumerate(self.domains):
-                if i == 0: continue
                 for j, rot in enumerate(self.rotations):
-                    rot.sum(self.domains[i].rotations[j])
+                    if i == 0:
+                        # First nulling the array
+                        rot.sum(self.domains[0].rotations[j], self.density[0], 0)
+                    else:
+                        rot.sum(self.domains[i].rotations[j], 1, self.density[i])
 
             # Then, recalculating each rotation parameters
             for i, rot in enumerate(self.rotations):
                 rot.process()
 
-    return Sample(n)
+    return Sample(d)

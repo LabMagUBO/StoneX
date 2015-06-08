@@ -22,6 +22,32 @@ f0 = 1e9          #attempt frequency, in Hz
 tau_mes = 100       #measurement mean time, in s
 
 
+## Distribution function
+def normale(x, m, s):
+    """
+        Normal distribution function.
+        x is the variable, m the mean, s the standard deviation
+    """
+
+    return 1/np.sqrt(2*np.pi*s**2) * np.exp( -(x - m)**2 / 2 / s**2 )
+
+
+def lognormale(x, mu, sigma):
+    """
+        Lognormal distribution function.
+        x is the variable, mu the mean, sigma the normal standard deviation
+
+        Return the log expected value and standard deviation as well.
+    """
+    if np.any(x == 0):
+        logger = init_log(__name__, console_level='debug', file_level='info')
+        logger.error("lognormale distribution: unable to divide by 0.")
+
+    m = np.log(mu) - np.log(1 + sigma / mu**2) / 2
+    s = np.sqrt(np.log(1 + sigma / mu**2))
+
+    return 1/( x * s * np.sqrt(2*np.pi) ) * np.exp( -(np.log(x) - m)**2 / 2 / s**2 ), m, s
+
 ## Conversion unit functions
 def convert_to(value, factor, system, logger):
     if system == 'si':
