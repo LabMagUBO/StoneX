@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Version of the program
-__version__ = '0.4, 2015-02-27'
+__version__ = '1.0, 2015-06-08'
 
 
 ## General modules
