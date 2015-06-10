@@ -195,7 +195,7 @@ class Cycle(object):
                 # Creating figure, with title
                 fig = pl.figure()
                 fig.set_size_inches(18.5,10.5)
-                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
+                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, np.round(self.T, 2), np.degrees(self.phi)))
 
                 # Axis
                 ax = fig.add_subplot(121, aspect='equal')
@@ -242,7 +242,7 @@ class Cycle(object):
                 # Creating figure, with title
                 fig = pl.figure()
                 fig.set_size_inches(25, 10.5)
-                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.round(np.degrees(self.phi), 2)))
+                fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, np.round(self.T, 2) , np.round(np.degrees(self.phi), 2)))
 
                 ## Plotting energy : increasing field
                 ax = fig.add_subplot(121, aspect='equal')

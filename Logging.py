@@ -20,7 +20,10 @@ import logging
 
 # Recording the file name of the main script
 import __main__ as main
-main_file = main.__file__
+try:
+    main_file = main.__file__
+except AttributeError:
+    main_file = 'console'
 
 ## Methods
 def set_colors():

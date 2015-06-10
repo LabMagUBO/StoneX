@@ -3,7 +3,7 @@
 
 """
     Main program file.
-    Example of Franco-Conde Model.
+    Example of Rotatable_AF Model.
 
     StoneX V1.0 compatible
 """
