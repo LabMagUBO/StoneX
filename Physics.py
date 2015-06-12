@@ -32,10 +32,11 @@ def normale(x, m, s):
     return 1/np.sqrt(2*np.pi*s**2) * np.exp( -(x - m)**2 / 2 / s**2 )
 
 
-def lognormale(x, mu, sigma):
+def lognormale(x, m, s):
     """
         Lognormal distribution function.
-        x is the variable, mu the mean, sigma the normal standard deviation
+        x is the variable, m and s respectively the normal mean and standard deviation
+        mu the mean, sigma the lognormal standard deviation
 
         Return the log expected value and standard deviation as well.
     """
@@ -43,10 +44,10 @@ def lognormale(x, mu, sigma):
         logger = init_log(__name__, console_level='debug', file_level='info')
         logger.error("lognormale distribution: unable to divide by 0.")
 
-    m = np.log(mu) - np.log(1 + sigma / mu**2) / 2
-    s = np.sqrt(np.log(1 + sigma / mu**2))
+    mu = np.log(m) - np.log(1 + s / m**2) / 2
+    sigma = np.sqrt(np.log(1 + s / m**2))
 
-    return 1/( x * s * np.sqrt(2*np.pi) ) * np.exp( -(np.log(x) - m)**2 / 2 / s**2 ), m, s
+    return 1/(x * sigma * np.sqrt(2 * np.pi)) * np.exp( -(np.log(x) - mu)**2 / 2 / sigma**2 ), mu, sigma
 
 ## Conversion unit functions
 def convert_to(value, factor, system, logger):

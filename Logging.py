@@ -49,33 +49,46 @@ def init_log(name, console_level='debug', file_level='info', log_file=main_file,
     # Create the logger
     logger = logging.getLogger(name)
 
-    # Deactivate default console output
-    #logger.propagate = True
-    if not logger.handlers:
+    return logger
 
-        # Set the logger's level, to write everything
-        logger.setLevel(logging.DEBUG)
+def first_init_log(name, console_level='debug', file_level='info', log_file=main_file, mode='a'):
+    """
+        Initialize the logger.
 
-        # Formatter
-        #file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
-        file_formatter = logging.Formatter("[%(asctime)s] -:- %(message)s")
-        console_formatter = logging.Formatter("%(levelname)s\t%(name)s - %(module)s.%(funcName)s \t-> %(message)s")
+        Mode : append by default. In order to clean the log, need to set the fist logger to 'w' mode.
 
-        # Console handler, with its own level
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(set_level(console_level))
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
+        Usage: initialize a new logger at each level.
+            logger = init_log(__name__)
+        then
+            logger.info() / logger.warn() / ...
+    """
+    # Create the logger
+    logger = logging.getLogger(name)
 
-        # Create a file handler (log file), with write mode, and applying the formatter.
-        # Append the handler to the logger
-        file_handler = logging.FileHandler(log_file + '.log', mode=mode)
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(set_level(file_level))
-        logger.addHandler(file_handler)
+    #if not logger.handlers:
+    # Set the logger's level, to write everything
+    logger.setLevel(logging.DEBUG)
 
-        #Setting colors
-        set_colors()
+    # Formatter
+    #file_formatter = logging.Formatter("[%(asctime)s] %(name)s - %(module)s.%(funcName)s -:- %(message)s")
+    file_formatter = logging.Formatter("[%(asctime)s] -:- %(message)s")
+    console_formatter = logging.Formatter("%(levelname)s\t%(name)s - %(module)s.%(funcName)s \t-> %(message)s")
+
+    # Console handler, with its own level
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(set_level(console_level))
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+
+    # Create a file handler (log file), with write mode, and applying the formatter.
+    # Append the handler to the logger
+    file_handler = logging.FileHandler(log_file + '.log', mode=mode)
+    file_handler.setFormatter(file_formatter)
+    file_handler.setLevel(set_level(file_level))
+    logger.addHandler(file_handler)
+
+    #Setting colors
+    set_colors()
 
     return logger
 

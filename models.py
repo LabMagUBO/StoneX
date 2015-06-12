@@ -606,7 +606,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     break
 
             k += 1     # incrementing loop index
-            if k % 10000 == 0:
+            if k % 50000 == 0:
                 self.logger.warn( "Nb loop : {}".format(k))
                 break
                 if False:
