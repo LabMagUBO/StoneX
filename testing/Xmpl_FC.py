@@ -35,9 +35,9 @@ logger.info("Program version {}".format(StoneX.__version__))
 vsm = StoneX.VSM()
 
 # Set the vsm parameters
-vsm.H = (6000, 20, 'cgs')
+vsm.H = (6000, 200, 1500, 20, 'cgs')
 vsm.phi = (0, 361, 1000, 'deg')
-vsm.T = (0.1, 10, 1, 'K')
+vsm.T = (0.1, 40, 2, 'K')
 
 # Plotting
 vsm.plot_cycles = True
@@ -58,7 +58,7 @@ logger.info(vsm)
 ################################################################################
 # First, we create a specific domain, changing if necessary the parameters
 # Models available : Stoner_Wohlfarth, Meiklejohn_Bean, Garcia_Otero, Franco_Conde, Rotatable_AF, Double_MacroSpin
-domain = StoneX.create_domain(StoneX.Franco_Conde, 'sampleFC')
+domain = StoneX.create_domain(StoneX.Franco_Conde, 'Xmpl_FC')
 
 # Setting the temperature
 domain.T = 1
@@ -123,7 +123,7 @@ for i, radius in enumerate(R):
 # MEASUREMENTS
 ################################################################################
 # We can measure the sample or one domain only
-vsm.load(sample)
+vsm.load(domain)
 vsm.measure()
 
 

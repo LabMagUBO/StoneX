@@ -569,6 +569,7 @@ class Tevol(object):
         self.model = vsm.sample.model
 
     def extract_data(self, rotations):
+        # Loop over T
         for k, rot in enumerate(rotations):
             self.data[k, :, :] = rot.data
 
@@ -580,11 +581,10 @@ class Tevol(object):
         # Create the PdfPages object to which we will save the pages:
         # The with statement makes sure that the PdfPages object is closed properly at
         # the end of the block, even if an Exception occurs.
-        pdfFile = "{}/Tevol.pdf".format(path)
+        pdfFile = "{}/Tevol_HcHe.pdf".format(path)
         with PdfPages(pdfFile) as pdf:
             # Loop over phi
             for k, phi in enumerate(self.data[0, :, 0]):
-
                 # Creating figure
                 fig = pl.figure()
                 fig.set_size_inches(25,10.5)
@@ -610,6 +610,47 @@ class Tevol(object):
                 pdf.savefig()
                 pl.close()
 
+    def plot_M(self, path):
+        """
+            Plotting the T evolution of Mr and Mt for each field's direction
+        """
+
+        # Create the PdfPages object to which we will save the pages:
+        # The with statement makes sure that the PdfPages object is closed properly at
+        # the end of the block, even if an Exception occurs.
+        pdfFile = "{}/Tevol_MrMt.pdf".format(path)
+        with PdfPages(pdfFile) as pdf:
+            # Loop over phi
+            for k, phi in enumerate(self.data[0, :, 0]):
+                # Creating figure
+                fig = pl.figure()
+                fig.set_size_inches(25,10.5)
+                fig.suptitle("Model : {}, phi= {}deg".format(self.model, np.round(np.degrees(phi), 2) ))
+
+                # Hc
+                ax = fig.add_subplot(121)
+                ax.set_title("Mr")
+                ax.plot(self.T, np.abs(self.data[:, k, 3]), 'ro', label="|Mr1|")
+                ax.plot(self.T, np.abs(self.data[:, k, 4]), 'go', label="|Mr2|")
+                ax.set_xlabel("T (K)")
+                ax.set_ylabel("Mr (A.m²)")
+                ax.legend()
+                ax.grid()
+
+                # He
+                ax2 = fig.add_subplot(122)
+                ax2.set_title("Mt")
+                ax2.plot(self.T, np.abs(self.data[:, k, 5]), 'ro', label="Mt1")
+                ax2.plot(self.T, np.abs(self.data[:, k, 6]), 'go', label="Mt2")
+                ax2.set_xlabel("T (K)")
+                ax2.set_ylabel("Mt (A.m²)")
+                ax2.legend()
+                ax2.grid()
+
+                # Saving and closing
+                pdf.savefig()
+                pl.close()
+
     def export(self, path):
         """
             Exporting the temperature evolution for each field direction
@@ -628,6 +669,6 @@ class Tevol(object):
             tab = np.hstack((T_vert, self.data[:, k, 1:]))
 
             # Exporting
-            header = "Model = {0} \nphi = {1} deg".format(self.model, np.degrees(phi))
+            header = "Model = {0} \nphi = {1} deg\n".format(self.model, np.degrees(phi))
             header +="Hc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2 (Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
             np.savetxt(file, tab, delimiter='\t', header=header, comments='# ')

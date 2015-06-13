@@ -83,26 +83,66 @@ class VSM(object):
     @H.setter
     def H(self, val):
         """
-            H setter. Need a tuple as argument with three variables : Hmax, Hstep, 'units'
+            H setter.
+            Need a tuple as argument with 5 variables : Hmax, Hstep, Hsub, Hsubstep, 'units'
         """
-        try:
-            Hmax, Hstep, unit = val
-        except ValueError:
-            raise ValueError("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs')")
+
+        # Two possibilities
+        if len(val) == 3:       # Only one step size
+            try:
+                Hmax, Hstep, unit = val
+            except ValueError:
+                raise ValueError("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
+            else:
+                # If no exception
+                if unit == 'cgs':
+                    Hmax, Hstep = convert_field(np.array([Hmax, Hstep]), 'si')
+                elif unit != 'si':
+                    self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
+                    unit = 'si'
+
+                if Hstep == 0:
+                    self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
+                    Hstep = convert_field(1, 'si')
+
+                half = np.arange(- Hmax, Hmax + Hstep, Hstep)
+                self._H = np.append(-half, half[1:])
+
+        elif len(val) == 5:
+            try:
+                Hmax, Hstep, Hsub, Hsubstep, unit = val
+            except ValueError:
+                raise ValueError("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
+            else:
+                # If no exception
+                if unit == 'cgs':
+                    Hmax, Hstep, Hsub, Hsubstep = convert_field(np.array([Hmax, Hstep, Hsub, Hsubstep]), 'si')
+                elif unit != 'si':
+                    self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
+                    unit = 'si'
+
+                if Hstep == 0:
+                    self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
+                    Hstep = convert_field(1, 'si')
+
+                if Hmax < Hsub:
+                    self.logger.warn("H.setter : Hmax < Hsub. Setting Hmax equal to Hsub.")
+                    Hmax = Hsub
+
+                H1 = np.arange(0, Hsub, Hsubstep)
+                print(H1)
+                H2 = np.arange(Hsub, Hmax + Hstep, Hstep)
+                print(H2)
+                quarter = np.append(H1, H2)
+                print(quarter)
+                half = np.append(quarter[:0:-1], -quarter)
+                print(half)
+                self._H = np.append(half[:-1], -half)
+
         else:
-            # If no exception
-            if unit == 'cgs':
-                Hmax, Hstep = convert_field(np.array([Hmax, Hstep]), 'si')
-            elif unit != 'si':
-                self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
-                unit = 'si'
-
-            if Hstep == 0:
-                self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
-                Hstep = convert_field(1, 'si')
-
-            half = np.arange(- Hmax, Hmax + Hstep, Hstep)
-            self._H = np.append(-half, half[1:])
+            self.logger.critical("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
+            self.warn("Program terminated.")
+            sys.exit(0)
 
     @property
     def phi(self, unit='rad'):
@@ -240,7 +280,9 @@ class VSM(object):
 
             domain.evolT.extract_data(domain.rotations)
 
+            # Plotting HcHe(T) and MrMt(T)
             domain.evolT.plot_H(domain.name)
+            domain.evolT.plot_M(domain.name)
 
             if self.export_data:
                 domain.evolT.export(domain.name)
