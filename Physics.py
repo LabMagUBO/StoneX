@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import time
 #from functions import *
 from StoneX.Logging import *
 
@@ -76,3 +77,20 @@ def convert_moment(value, system):
     logger = init_log(__name__, console_level='debug', file_level='info')
     factor = 1e-3       #1 emu = 1e-3 A m**2
     return convert_to(value, factor, system, logger)
+
+def timer(startstop):
+    """
+        Timer to record or display the time, depending on the boolean startstop.
+        startstop=True : start the time
+        startstop = False : stop the timer and return the time
+    """
+    global start_time
+    if startstop :
+        start_time = time.time()
+    else :
+        stop_time = time.time()
+        dt = stop_time - start_time
+        s = dt % 60
+        m = np.int( ((dt - s) / 60 ) % 60 )
+        h = np.int( ((dt - 60 * m - s) / 3600) % 60 )
+        return " Total time : {}hour, {} minutes, {:.3} seconds".format(h, m, s)

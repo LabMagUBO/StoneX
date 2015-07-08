@@ -169,7 +169,7 @@ class Cycle(object):
         ax.text(x_text, y_text, "Hc = {:.3}Oe\nHe = {:.3}Oe".format(Hc, He), style='italic', bbox={'facecolor':'white', 'alpha':1, 'pad':10})
 
         # Exporting graph as pdf
-        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
+        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 2), round(np.degrees(self.phi), 2) )
         pl.savefig(file, dpi=100)
 
         # Not forgetting to close figure (saves memory)
@@ -228,7 +228,8 @@ class Cycle(object):
                 pl.close()
 
             elif len(self.energy[0].shape) == 1:
-                # Resizing E
+                # Resizing the energy table (in order to have a 2D-array)
+                # Transform a 1Darray of 1Darrays in a single 2D array
                 E = np.ma.zeros((self.energy.size, self.energy[0].size))
                 for i, val in enumerate(self.energy):
                     E[i, :] = val
@@ -297,7 +298,7 @@ class Cycle(object):
         # Create the PdfPages object to which we will save the pages:
         # The with statement makes sure that the PdfPages object is closed properly at
         # the end of the block, even if an Exception occurs.
-        pdfFile = "{}/landscape_T{}_phi{}.pdf".format(path, self.T, np.round(self.phi, 2))
+        pdfFile = "{}/landscape_T{}_phi{}.pdf".format(path, self.T, np.round(np.degrees(self.phi), 2))
         with PdfPages(pdfFile) as pdf:
 
             # Determine if the energy landscape is 2D or 1d
@@ -380,14 +381,14 @@ class Cycle(object):
             Export the data cycle to the path.
         """
         # Define the filename
-        file = "{0}/cycle_{1}_T{2}_phi{3}.dat".format(path, self.model, round(self.T, 0), round(np.degrees(self.phi), 1) )
+        file = "{0}/cycle_{1}_T{2}_phi{3}.dat".format(path, self.model, round(self.T, 3), round(np.degrees(self.phi), 3) )
 
         # Info
         self.logger.info("Exporting cycle data : {}".format(file))
 
         # Exporting
-        header = "Model = {0} \nT = {1}K \nphi = {2} deg \nMs = {3} A/m".format(self.model, self.T, np.degrees(self.phi), self.Ms)
-        header +="H (A/m) \t\tMt (Am**2) /t\tMl (Am**2) \t\t(theta, alpha, ...) (rad)"
+        header = "Model = {0} \nT = {1}K \nphi = {2} deg \nMs = {3} A/m\n\n".format(self.model, self.T, np.degrees(self.phi), self.Ms)
+        header +="H (A/m) \t\tMt (Am**2) \t\tMl (Am**2) \t\t(theta, alpha, ...) (rad)"
         np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
 
 
@@ -468,7 +469,8 @@ class Rotation(object):
                 cycle.plot_energyLandscape(path)
 
             # Freeing memory
-            if hasattr(cycle, 'energy'):
+            if hasattr(cycle, 'energy') and not plot_energyPath:
+                self.logger.debug("Freeing memory.")
                 del(cycle.energy)
 
 
@@ -592,17 +594,19 @@ class Tevol(object):
 
                 # Hc
                 ax = fig.add_subplot(121)
-                ax.plot(self.T, convert_field(self.data[:, k, 1], 'cgs'), 'ro', label="Hc")
+                #ax.plot(self.T, convert_field(self.data[:, k, 1], 'cgs'), 'ro', label="Hc")
+                ax.plot(self.T, self.data[:, k, 1] * mu_0 * 1e3, 'ro', label="Hc")
                 ax.set_xlabel("T (K)")
-                ax.set_ylabel("Hc (Oe)")
+                ax.set_ylabel("Hc (mT)")
                 ax.legend()
                 ax.grid()
 
                 # He
                 ax2 = fig.add_subplot(122)
-                ax2.plot(self.T, np.round(convert_field(self.data[:, k, 2], 'cgs'), 2), 'go', label="He")
+                #ax2.plot(self.T, np.round(convert_field(self.data[:, k, 2], 'cgs'), 2), 'go', label="He")
+                ax2.plot(self.T, self.data[:, k, 2] * mu_0 * 1e3, 'go', label="He")
                 ax2.set_xlabel("T (K)")
-                ax2.set_ylabel("He (Oe)")
+                ax2.set_ylabel("He (mT)")
                 ax2.legend()
                 ax2.grid()
 

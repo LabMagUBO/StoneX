@@ -6,6 +6,7 @@ __version__ = '1.0, 2015-06-08'
 
 ## General modules
 import shutil
+import time
 # Can't work without
 import numpy as np
 from matplotlib import pylab as pl
