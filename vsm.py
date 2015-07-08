@@ -130,13 +130,13 @@ class VSM(object):
                     Hmax = Hsub
 
                 H1 = np.arange(0, Hsub, Hsubstep)
-                print(H1)
+                #print(H1)
                 H2 = np.arange(Hsub, Hmax + Hstep, Hstep)
-                print(H2)
+                #print(H2)
                 quarter = np.append(H1, H2)
-                print(quarter)
+                #print(quarter)
                 half = np.append(quarter[:0:-1], -quarter)
-                print(half)
+                #print(half)
                 self._H = np.append(half[:-1], -half)
 
         else:
@@ -227,8 +227,15 @@ class VSM(object):
 
             # Overriding the plotting commands
             self.plot_cycles = True
+            self.plot_azimuthal = True
             self.plot_energyPath = False        # not possible
             self.plot_energyLandscape = False   # not possible
+            self.plot_T = True
+
+            # And exporting commands
+            self.export_data = True
+            self.export_azimuthal = True
+            self.export_T = True
 
             # Processing the sample
             self.process_cycles(self.sample)
