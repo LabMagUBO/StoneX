@@ -35,13 +35,13 @@ logger.info("Program version {}".format(StoneX.__version__))
 vsm = StoneX.VSM()
 
 # Set the vsm parameters
-vsm.H = (0.5/StoneX.mu_0, 0.01/StoneX.mu_0, 'si')
-vsm.phi = (0, 91, 45, 'deg')
+vsm.H = (0.5/StoneX.mu_0, 0.05/StoneX.mu_0, 0.15/StoneX.mu_0, 0.005/StoneX.mu_0, 'si')
+vsm.phi = (0, 91, 15, 'deg')
 vsm.T = (300, 1001, 1000, 'K')
 
 # Plotting
 vsm.plot_cycles = True
-vsm.plot_azimuthal = False
+vsm.plot_azimuthal = True
 vsm.plot_energyPath = False
 vsm.plot_energyLandscape = False    #Takes a lot of time
 vsm.plot_T = False
@@ -52,13 +52,12 @@ vsm.export_data = True
 # Displaying parameters
 logger.info(vsm)
 
-
 ################################################################################
 # SAMPLE CREATION
 ################################################################################
 # First, we create a specific domain, changing if necessary the parameters
 # Models available : Stoner_Wohlfarth, Meiklejohn_Bean, Garcia_Otero, Franco_Conde, Rotatable_AF, Double_MacroSpin
-domain = StoneX.create_domain(StoneX.Stoner_Wohlfarth, 'sample')
+domain = StoneX.create_domain(StoneX.Stoner_Wohlfarth, 'Xmpl_SW')
 
 # Setting the temperature
 domain.T = 0
@@ -101,7 +100,7 @@ sample = StoneX.create_sample(domain, Density)
 
 if True:
     pl.plot(R, np.around(X * N), '-ro')
-    pl.savefig('sample/distrib.pdf', dpi=100)
+    pl.savefig('{}/distrib.pdf'.format(domain.name), dpi=100)
 
 
 for i, radius in enumerate(R):
@@ -112,7 +111,7 @@ for i, radius in enumerate(R):
 # MEASUREMENTS
 ################################################################################
 # We can measure the sample or one domain only
-vsm.load(sample)
+vsm.load(domain)
 vsm.measure()
 
 

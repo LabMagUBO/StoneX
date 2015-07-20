@@ -85,6 +85,7 @@ Ferro :
     gamma_bq = {} deg
     K_f V_f = {} J
     K_f V_f / (25k_B) = T_B = {} K
+    Hc(0K) = 2K_f/(mu_0 M_f) = {} Oe
                 """.format(
                             np.degrees(self.theta[1] - self.theta[0]),
                             self.Ms, self.V_f,
@@ -94,7 +95,8 @@ Ferro :
                             self.K_bq,
                             np.degrees(self.gamma_bq),
                             (self.K_f * self.V_f / 2),
-                            self.K_f * self.V_f / ( 25 * k_B)
+                            self.K_f * self.V_f / ( np.log(tau_mes * f0) * k_B),
+                            convert_field(2 * self.K_f / mu_0 / self.Ms, 'cgs')
                         )
         return txt
 
@@ -166,7 +168,14 @@ class AntiFerro_Rotatable(AntiFerro):
         K_af = {} J/m**3
 
         V_af K_af = {} J
-        """.format(np.degrees(self.alpha[1] - self.alpha[0]), self.K_af, self.K_af * self.V_af)
+        K_af V_af / (25k_B) = T_B = {} K
+        He = 3J/mu_0/Ms/r = {} Oe
+        """.format(
+            np.degrees(self.alpha[1] - self.alpha[0]),
+            self.K_af,
+            self.K_af * self.V_af,
+            self.K_af * self.V_af / (np.log(tau_mes * f0) * k_B),
+            self.S * self.J_ex / mu_0 / self.Ms / self.V_f)
         return txt
 
     @property

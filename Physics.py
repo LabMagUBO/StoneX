@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import time
 #from functions import *
 from StoneX.Logging import *
 
@@ -32,10 +33,11 @@ def normale(x, m, s):
     return 1/np.sqrt(2*np.pi*s**2) * np.exp( -(x - m)**2 / 2 / s**2 )
 
 
-def lognormale(x, mu, sigma):
+def lognormale(x, m, s):
     """
         Lognormal distribution function.
-        x is the variable, mu the mean, sigma the normal standard deviation
+        x is the variable, m and s respectively the normal mean and standard deviation
+        mu the mean, sigma the lognormal standard deviation
 
         Return the log expected value and standard deviation as well.
     """
@@ -43,10 +45,10 @@ def lognormale(x, mu, sigma):
         logger = init_log(__name__, console_level='debug', file_level='info')
         logger.error("lognormale distribution: unable to divide by 0.")
 
-    m = np.log(mu) - np.log(1 + sigma / mu**2) / 2
-    s = np.sqrt(np.log(1 + sigma / mu**2))
+    mu = np.log(m) - np.log(1 + s / m**2) / 2
+    sigma = np.sqrt(np.log(1 + s / m**2))
 
-    return 1/( x * s * np.sqrt(2*np.pi) ) * np.exp( -(np.log(x) - m)**2 / 2 / s**2 ), m, s
+    return 1/(x * sigma * np.sqrt(2 * np.pi)) * np.exp( -(np.log(x) - mu)**2 / 2 / sigma**2 ), mu, sigma
 
 ## Conversion unit functions
 def convert_to(value, factor, system, logger):
@@ -75,3 +77,20 @@ def convert_moment(value, system):
     logger = init_log(__name__, console_level='debug', file_level='info')
     factor = 1e-3       #1 emu = 1e-3 A m**2
     return convert_to(value, factor, system, logger)
+
+def timer(startstop):
+    """
+        Timer to record or display the time, depending on the boolean startstop.
+        startstop=True : start the time
+        startstop = False : stop the timer and return the time
+    """
+    global start_time
+    if startstop :
+        start_time = time.time()
+    else :
+        stop_time = time.time()
+        dt = stop_time - start_time
+        s = dt % 60
+        m = np.int( ((dt - s) / 60 ) % 60 )
+        h = np.int( ((dt - 60 * m - s) / 3600) % 60 )
+        return " Total time : {}hour, {} minutes, {:.3} seconds".format(h, m, s)
