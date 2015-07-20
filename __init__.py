@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Version of the program
-__version__ = '1.0, 2015-06-08'
+__version__ = '1.1, 2015-07-20'
 
 ## General modules
 import shutil
