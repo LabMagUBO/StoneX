@@ -360,7 +360,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             eq is a two-value array [alpha_index, theta_index]
             Return the index of equilibrium
         """
-        # stopping criteria
+        # Stopping criteria
         found = False
 
         # Overflow security
@@ -501,7 +501,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             ax.set_ylabel("Alpha M_af(deg)")
 
             # Saving the figure
-            pl.savefig("sampleRA/test_maskLab_T{}_{}_{}.pdf".format(self.T, eqIdx[0], eqIdx[1] ))
+            pl.savefig("debugPlot/test_maskLab_T{}_{}_{}.pdf".format(self.T, eqIdx[0], eqIdx[1] ))
             pl.close()
 
 
@@ -566,7 +566,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         E_ini = E[eqIdx[0], eqIdx[1]]
 
         if False:
-            dos = 'sampleRA/'
+            dos = 'debugPlot/'
             self.debugplot_landscape(mask_lab, name='{}oldmask_eqIdx{}_{}'.format(dos, eqIdx[0], eqIdx[1]))
 
         # Index where the actual equilibrium is
@@ -575,11 +575,15 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         # The old mask, only containing the reachable domain
         mask_old = mask_lab == zonEq_label
 
-        # Minimum Average radius (case if the domain have a longer axis)
-        r2 = np.round(np.sqrt(mask_old.sum()/np.pi), 0)     # circular domain
-        r0 = np.max(mask_old.sum(axis=0))/2                 # alpha stretch domain
-        r1 = np.max(mask_old.sum(axis=1))/2                 # theta stretch domain
+        # Calculate the ration between theta and alpha, if theta and alpha array does not have the same size
+        ratio = nb[1] / nb[0]
+
+        # Minimum Average radius (case if the domain have a longer axis) (for theta lenght : self.alpha can be smaller)
+        r2 = np.round(np.sqrt(mask_old.sum()/np.pi * ratio), 0)     # circular domain
+        r0 = np.max(mask_old.sum(axis=0))/2 * ratio                 # alpha stretch domain
+        r1 = np.max(mask_old.sum(axis=1))/2                         # theta stretch domain
         r = np.ceil(np.min([r0, r1, r2]))
+        #self.logger.warn("{} {} {} {}".format(r1, r2, r0, r))
 
         # Successive try index
         tryIdx = np.array([eqIdx])
@@ -588,8 +592,17 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         k = 0   # Loop number
         i = 0   # position number
         while True:
-            candidate = tryIdx[i, :] + np.random.randint(-r, r, size=2)
+            # r and rAlpha are the maximum step for theta and alpha respectively
+            rAlpha = np.ceil(r / ratio)
+            # Random step for theta and alpha
+            thetaStep = np.random.randint(-r, r+1)
+            alphaStep = np.random.randint(-rAlpha, rAlpha+1)
+            #print("Step", r, rAlpha, thetaStep, alphaStep)
+
+            # New candidate
+            candidate = tryIdx[i, :] + np.array([alphaStep, thetaStep])
             candidate = candidate % nb
+            #print(candidate, nb)
 
             if E[candidate[0], candidate[1]] is not np.ma.masked:
                 i +=1   # incrementing candidate index
@@ -606,15 +619,16 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     break
 
             k += 1     # incrementing loop index
-            if k % 50000 == 0:
+            if k % 10000 == 0:
                 self.logger.warn( "Nb loop : {}".format(k))
-                break
+
                 if False:
                     print("plotting")
-                    dos = 'sampleRA/'
+                    dos = 'debugPlot/'
                     self.debugplot_landscape(mask_old, tryIdx[-100:], name='{}oldmask_eqIdx{}_{}_{}'.format(dos, eqIdx[0], eqIdx[1], k))
 
-                    sys.exit(0)
+                    #sys.exit(0)
+                break
 
             if k == 300000:
                 self.logger.warning("Random search not converging. Activate and check the debug map.")
@@ -666,11 +680,17 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                 # Getting the previous labelled mask
                 oldMask_lab = self.labelling_mask(np.ma.copy(self.E[phiIdx, HIdx - 1]), eqIdx)
 
-                # If only one zone
-                if np.unique(oldMask_lab).size == 2:
+                # Calculating the global minimun index
+                minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])
+                possibleIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])
+
+                # If only one zone including the two minima, ie old eq and new eq are in the same old zone
+                #if np.unique(oldMask_lab).size == 2:                       #old criteria. Landscape can have infinite zones, but only two are relevant
+                if oldMask_lab[possibleIdx[0], possibleIdx[1]] == oldMask_lab[eqIdx[0], eqIdx[1]]:
                     # Calculate the global minimum
-                    minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])
-                    eqIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])
+                    #minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])          #old command
+                    #eqIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])    # old command
+                    eqIdx = possibleIdx
                     break
 
                 else:
@@ -679,7 +699,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     # Debug plot
                     debugPlot = False
                     if debugPlot:
-                        dos = 'sampleRA/'
+                        dos = 'debugPlot/'
                         self.debugplot_landscape(oldMask_lab, eqIdx, name='{}T{}_H{}_k{}_1oldMasklab'.format(dos, self.T, HIdx, k))
 
                         self.debugplot_landscape(mask_lab, name='{}T{}_H{}_k{}_2Masklab'.format(dos, self.T, HIdx, k))
