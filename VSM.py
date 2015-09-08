@@ -29,10 +29,10 @@ class VSM(object):
         self.logger = init_log(__name__)
         self.logger.debug("Init. Class VSM")
 
-        ## Cycle's parameters
+        #  Cycle's parameters
         # H and phi store ararys for cycle and rotations
         # Field values, default
-        self.H = (100 * 1e3 / 4 / np.pi, 2**4, 'si')
+        # self.H = (100 * 1e3 / 4 / np.pi, 2**4)
 
         # Orientation
         self.phi = (0, 95, 10, 'deg')
@@ -49,8 +49,8 @@ class VSM(object):
 
         # Export parameters
         self.export_data = True
-        #self.export_azimuthal = True
-        #self.export_T = True
+        # self.export_azimuthal = True
+        # self.export_T = True
 
     def __str__(self):
         """
@@ -77,72 +77,78 @@ class VSM(object):
         return str
 
     @property
-    def H(self, unit='si'):
+    def H(self):
         return self._H
 
     @H.setter
     def H(self, val):
         """
             H setter.
-            Need a tuple as argument with 5 variables : Hmax, Hstep, Hsub, Hsubstep, 'units'
+            Need a tuple as argument with 5 variables :
+                Hmax, Hstep, Hsub, Hsubstep, 'units'
+
+            Four possiblitities :
+                (Hmax, Hstep),
+                (Hmax, Hstep, factor),
+                (Hmax, Hstep, Hsub, Hsubstep),
+                (Hmax, Hstep, Hsub, Hsubstep, factor)
         """
 
-        # Two possibilities
-        if len(val) == 3:       # Only one step size
-            try:
-                Hmax, Hstep, unit = val
-            except ValueError:
-                raise ValueError("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
-            else:
-                # If no exception
-                if unit == 'cgs':
-                    Hmax, Hstep = convert_field(np.array([Hmax, Hstep]), 'si')
-                elif unit != 'si':
-                    self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
-                    unit = 'si'
-
-                if Hstep == 0:
-                    self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
-                    Hstep = convert_field(1, 'si')
-
-                half = np.arange(- Hmax, Hmax + Hstep, Hstep)
-                self._H = np.append(-half, half[1:])
-
+        # Getting the argument values, four possiblities
+        prefix = ''     # empty by default
+        Hsub = None
+        if len(val) == 2:
+            Hmax, Hstep = val
+        elif len(val) == 3:
+            Hmax, Hstep, prefix = val
+        elif len(val) == 4:
+            Hmax, Hstep, Hsub, Hsubstep = val
         elif len(val) == 5:
-            try:
-                Hmax, Hstep, Hsub, Hsubstep, unit = val
-            except ValueError:
-                raise ValueError("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
-            else:
-                # If no exception
-                if unit == 'cgs':
-                    Hmax, Hstep, Hsub, Hsubstep = convert_field(np.array([Hmax, Hstep, Hsub, Hsubstep]), 'si')
-                elif unit != 'si':
-                    self.logger.warn("H.setter : unknown «{0}» system, using 'si' by default.".format(unit))
-                    unit = 'si'
+            Hmax, Hstep, Hsub, Hsubstep, prefix = val
+        else:
+            self.logger.error("vsm.H => wrong number of arguments")
+            self.logger.error(
+                "Syntax : VSM.H = (Hmax, Hmin,[[Hsub,\
+                 Hsubstep]],  [[factor]])"
+            )
 
-                if Hstep == 0:
-                    self.logger.warn("H.setter : need at least one value for H. Changing Hstep to 1 Oe.".format(unit))
-                    Hstep = convert_field(1, 'si')
+        # Checking the entry
+        if Hstep == 0 or Hmax == 0:
+            self.logger.error(
+                'Need at least one value for H'
+            )
+            self.logger.critical('Unable to continue.')
+            sys.exit("Program terminated")
 
-                if Hmax < Hsub:
-                    self.logger.warn("H.setter : Hmax < Hsub. Setting Hmax equal to Hsub.")
-                    Hmax = Hsub
-
-                H1 = np.arange(0, Hsub, Hsubstep)
-                #print(H1)
-                H2 = np.arange(Hsub, Hmax + Hstep, Hstep)
-                #print(H2)
-                quarter = np.append(H1, H2)
-                #print(quarter)
-                half = np.append(quarter[:0:-1], -quarter)
-                #print(half)
-                self._H = np.append(half[:-1], -half)
+        # Two cases, with zoom part or without
+        if not Hsub:
+            print('pref', prefix)
+            half = np.arange(- Hmax, Hmax + Hstep, Hstep)
+            self._H = np.append(-half, half[1:]) * prefixes[prefix]
 
         else:
-            self.logger.critical("vsm.H => need the following tuple : (Hmax, Hstep, 'si' or 'cgs') or (Hmax, Hstep, Hsub, Hsubstep, 'si' or 'cgs')")
-            self.warn("Program terminated.")
-            sys.exit(0)
+            H1 = np.arange(0, Hsub, Hsubstep)
+            H2 = np.arange(Hsub, Hmax + Hstep, Hstep)
+            quarter = np.append(H1, H2)
+            half = np.append(quarter[:0:-1], -quarter)
+
+            self._H = np.append(half[:-1], -half) * prefixes[prefix]
+
+    @property
+    def B(self):
+        """
+            Magnetic induction property, in Tesla.
+        """
+        return self._H * mu_0
+
+    @B.setter
+    def B(self, val):
+        """
+            Magnetic induction setter, in Tesla.
+            Usage : same as VSM.H
+        """
+        self.H = val
+        self._H /= mu_0
 
     @property
     def phi(self, unit='rad'):
