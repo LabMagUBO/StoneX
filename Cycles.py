@@ -133,43 +133,55 @@ class Cycle(object):
         # Creating figure
         fig = pl.figure()
         fig.set_size_inches(18.5,10.5)
-        fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
+        fig.suptitle("Model : {}, T = {}K, phi= {}deg".format(
+            self.model, self.T, np.degrees(self.phi)
+        ))
 
         # Initiating axis
         ax = fig.add_subplot(111)
         ax.grid(True)
-        #ax.set_title("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
+        # ax.set_title("Model : {}, T = {}K, phi= {}deg".format(self.model, self.T, np.degrees(self.phi)))
         ax.set_ylabel("Mag. Moment (A.m²)")
 
         # First axis
         ax.plot(self.data[:, 0], self.data[:, 2], 'ro-', label='Ml')
         ax.plot(self.data[:, 0], self.data[:, 1], 'go-', label='Mt')
-        ax.set_xlabel('Mag. Induction (A/m)')
+        ax.set_xlabel('Mag. Field H (A/m)')
         ax.legend()
 
-        # Second axis
+        # Second axis (magnetic induction B)
         x1, x2 = ax.get_xlim()
         ax2 = ax.twiny()
-        ax2.set_xlim(convert_field(x1, 'cgs'), convert_field(x2, 'cgs'))
-        ax2.set_xlabel('Mag. Field (Oe)')
+        ax2.set_xlim(mu_0 * x1 * 1e3, mu_0 * x2 * 1e3)
+        ax2.set_xlabel('Mag. Induction B (mT)')
 
-        #New y axis
+        # New y axis
         ax3 = ax.twinx()
         y1, y2 = ax.get_ylim()
         ax3.set_ylim(y1 * 1e3 * 1e9, y2 * 1e3 * 1e9)
         ax3.set_ylabel('Mag. Moment (micro emu)')
 
-        # Displaying Hc and Hc (in Oe)
-        Hc = np.abs(convert_field((self.H_coer[1] - self.H_coer[0]) / 2, 'cgs'))
-        He = convert_field((self.H_coer[1] + self.H_coer[0]) / 2, 'cgs')
+        # Displaying mu_0 Hc1 and mu_0 Hc2 in millitestla
+        Bc = np.abs((self.H_coer[1] - self.H_coer[0]) / 2) * mu_0
+        Be = (self.H_coer[1] + self.H_coer[0]) / 2 * mu_0
         y_lim = ax.get_ylim()
         x_lim = ax.get_xlim()
         x_text = (x_lim[1] - x_lim[0]) * 0.15 + x_lim[0]
         y_text = (y_lim[1] - y_lim[0]) * 0.8 + y_lim[0]
-        ax.text(x_text, y_text, "Hc = {:.3}Oe\nHe = {:.3}Oe".format(Hc, He), style='italic', bbox={'facecolor':'white', 'alpha':1, 'pad':10})
+        ax.text(
+            x_text, y_text,
+            "Hc = {:.3}mT\nHe = {:.3}mT".format(Bc * 1e3, Be * 1e3),
+            style='italic',
+            bbox={'facecolor': 'white', 'alpha': 1, 'pad': 10}
+        )
 
         # Exporting graph as pdf
-        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(path, self.model, round(self.T, 2), round(np.degrees(self.phi), 2) )
+        file = "{0}/cycle_{1}_T{2}_phi{3}.pdf".format(
+            path,
+            self.model,
+            round(self.T, 2),
+            round(np.degrees(self.phi), 2)
+        )
         pl.savefig(file, dpi=100)
 
         # Not forgetting to close figure (saves memory)
@@ -443,17 +455,19 @@ class Rotation(object):
         for i, cycle in enumerate(self.cycles):
             cycle.sum(rot.cycles[i], selfdensity, density)
 
-
-
-
-
-    def plot(self, path, plot_azimuthal=True, plot_cycles=True, plot_energyPath=True, plot_energyLandscape=True):
+    def plot(
+        self,
+        path, plot_azimuthal=True,
+        plot_cycles=True,
+        plot_energyPath=True,
+        plot_energyLandscape=True
+            ):
         """
             Plot the azimutal properties.
         """
         self.logger.info("Plotting rotationnal data in {} folder".format(path))
 
-        ## Plotting cycles graph
+        # Plotting cycles graph
         for i, cycle in enumerate(self.cycles):
             # Cycle
             if plot_cycles:
@@ -473,35 +487,54 @@ class Rotation(object):
                 self.logger.debug("Freeing memory.")
                 del(cycle.energy)
 
-
         # Plotting azimuthal
         if plot_azimuthal:
             # Plotting azimutal data
-            file = "{0}/azimuthal_{1}_T{2}.pdf".format(path, self.model, round(self.T, 0))
+            file = "{0}/azimuthal_{1}_T{2}.pdf".format(
+                path, self.model, round(self.T, 0)
+            )
             data = self.data
 
             fig = pl.figure()
-            fig.set_size_inches(18.5,18.5)
+            fig.set_size_inches(18.5, 18.5)
             coer = fig.add_subplot(221, polar=True)
             coer.grid(True)
-            coer.plot(data[:, 0], convert_field(np.abs(data[:, 1]), 'cgs'), 'ro-', label='Hc (Oe)')
+            coer.plot(
+                data[:, 0], np.abs(data[:, 1]) * mu_0 * 1e3,
+                'ro-', label='Bc (mT)'
+            )
             coer.legend()
 
             ex = fig.add_subplot(222, polar=True)
             ex.grid(True)
-            ex.plot(data[:, 0], convert_field(np.abs(data[:, 2]), 'cgs'), 'bo-', label='He (Oe)')
+            ex.plot(
+                data[:, 0], np.abs(data[:, 2]) * mu_0 * 1e3,
+                'bo-', label='Be (mT)'
+            )
             ex.legend()
 
-            rem = fig.add_subplot(224, polar = True)
+            rem = fig.add_subplot(224, polar=True)
             rem.grid(True)
-            rem.plot(data[:,0], np.abs(data[:, 3] / self.Ms), 'mo-', label='Mr_1 / Ms')
-            rem.plot(data[:,0], np.abs(data[:, 4] / self.Ms), 'co-', label='Mr_2 / Ms')
+            rem.plot(
+                data[:, 0], np.abs(data[:, 3] / self.Ms),
+                'mo-', label='Mr_1 / Ms'
+            )
+            rem.plot(
+                data[:, 0], np.abs(data[:, 4] / self.Ms),
+                'co-', label='Mr_2 / Ms'
+            )
             rem.legend()
 
-            trans = fig.add_subplot(223, polar = True)
+            trans = fig.add_subplot(223, polar=True)
             trans.grid(True)
-            trans.plot(data[:, 0], np.abs(data[:, 5] / self.Ms), 'go-', label='max(Mt)1 (A m**2)')
-            trans.plot(data[:, 0], np.abs(data[:, 6] / self.Ms), 'yo-', label='max(Mt)2 (A m**2)')
+            trans.plot(
+                data[:, 0], np.abs(data[:, 5] / self.Ms),
+                'go-', label='max(Mt)1 (A m**2)'
+            )
+            trans.plot(
+                data[:, 0], np.abs(data[:, 6] / self.Ms),
+                'yo-', label='max(Mt)2 (A m**2)'
+            )
             trans.legend()
 
             #On trace en exportant

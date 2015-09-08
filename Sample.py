@@ -22,7 +22,6 @@ from StoneX.Logging import *
 from StoneX.Cycles import *
 
 
-
 class Domain_base():
     def __init__(self):
         # Creating logger for all children classes
@@ -44,7 +43,6 @@ class Domain_base():
             25 k_B T = {} J
             """.format(self.V, self.V * 1e27, self.T, 25*k_B*self.T)
         return txt
-
 
 
 class Ferro(Domain_base):
