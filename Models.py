@@ -15,18 +15,18 @@
 # General modules
 import sys
 import numpy as np
-#import sympy as sp
+# import sympy as sp
 import scipy.ndimage as nd
-#from sympy.abc import x
+# from sympy.abc import x
 from matplotlib import pylab as pl
 
 # My own modules
-#from constants import *
+# from constants import *
 from StoneX.Physics import *
 from StoneX.Logging import *
 from StoneX.Sample import *
-#from StoneX.models import *
-#from StoneX.constants import *
+# from StoneX.models import *
+# from StoneX.constants import *
 
 
 class Stoner_Wohlfarth(Ferro):
@@ -47,14 +47,18 @@ class Stoner_Wohlfarth(Ferro):
 
         # sparse=True for saving memory
         # indexing : place the element in the index order
-        Ph, Hf, Th = np.meshgrid(vsm.phi, vsm.H, self.theta, sparse=True, indexing='ij')
+        Ph, Hf, Th = np.meshgrid(
+            vsm.phi, vsm.H, self.theta,
+            sparse=True, indexing='ij'
+        )
 
         # Creating a masked array. All values unmasked.
         self.E = np.ma.array(self.energy()(Ph, Hf, Th))
 
     def search_eq(self, E, eq):
         """
-            Search the equilibrium state «eq» depending on the initial state «ini» and the energy landscape «E».
+            Search the equilibrium state «eq» depending on the initial state
+             «ini» and the energy landscape «E».
             Return the index of equilibrium
         """
         # stopping criteria
@@ -66,14 +70,18 @@ class Stoner_Wohlfarth(Ferro):
         while not found:
             k += 1
 
-            #print("calc barrier")
-            barrier = np.array([E[ (eq - 1) % E.size] - E[eq], E[ (eq + 1) % E.size] - E[eq]])
+            # print("calc barrier")
+            barrier = np.array([
+                E[(eq - 1) % E.size] - E[eq],
+                E[(eq + 1) % E.size] - E[eq]
+            ])
 
             if (barrier >= 0).all():
                 # local minimum
                 found = True
             elif barrier[0] == barrier[1]:
-                self.logger.warn("Symmetrical unstable equilibrium. Choosing next largeur index (theta[idx+1]).")
+                self.logger.warn("Symmetrical unstable equilibrium.\
+                                Choosing next largeur index (theta[idx+1]).")
                 eq = (eq + 1) % E.size
             else:
                 idx = np.argmin(barrier)
@@ -89,18 +97,21 @@ class Stoner_Wohlfarth(Ferro):
 
     def analyse_energy(self, vsm):
         """
-            After calculating the energy depending on the parameters, search in which state is the magnetization.
+            After calculating the energy depending on the parameters, search in
+            which state is the magnetization.
             Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
         """
 
-        # Creating an array for temperature change. Only one possible value : T=0K
+        # Creating an array for temperature change.
+        # Only one possible value : T=0K
         self.rotations = np.zeros(1, dtype='object')
 
         # Data stored in Rotation object.
         self.rotations[0] = Rotation(vsm.phi)
         self.rotations[0].info(self)
 
-        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
+        # Index of the magnetization equilibrium, to start.
+        # Correspond to the global energy minimum
         eq = np.argmin(self.E[0, 0])
 
         # Loop over phi
@@ -112,11 +123,15 @@ class Stoner_Wohlfarth(Ferro):
             cycle.info(self, phi)
             # Loop over H (max -> min -> max)
             for j, H in enumerate(vsm.H):
-                #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+                # self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
 
                 eq = self.search_eq(self.E[i, j, :], eq)
 
-                cycle.data[j] = np.array([H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi), self.Ms * self.V_f * np.cos(self.theta[eq] - phi), self.theta[eq]])
+                cycle.data[j] = np.array([
+                    H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi),
+                    self.Ms * self.V_f * np.cos(self.theta[eq] - phi),
+                    self.theta[eq]
+                ])
 
                 # No need to save energy data
                 #cycle.energy[j] = np.ma.copy(self.E[i, j])

@@ -6,15 +6,18 @@
 
     Attributes :
         — H : returns the cycle field values
-        — H(Hmax, Hstep, 'si' or 'cgs') : create H array [Hmax,...,-Hmax,..., Hmax] using Hstep in 'si' or 'cgs' system
+        — H(Hmax, Hstep, prefix) : create H array [Hmax,...,-Hmax,..., Hmax]
+            using Hstep
 
     Properties :
         — phi : vsm direction of field, array type
-        — phi(start, stop, step, 'deg' or 'rad') : create phi array [start,...,stop[ using step in 'deg' or 'rad' unit
+        — phi(start, stop, step, 'deg' or 'rad') :
+            create phi array [start,...,stop[ using step in 'deg' or 'rad' unit
 
     Methods :
         — self.load(sample) : load the sample into the VSM
-        — self.measure() : measure all energy states and determine the magnetization cycle
+        — self.measure() : measure all energy states and determine
+            the magnetization cycle
         — self.process_cycles() : plot all the graphs
 """
 import sys
