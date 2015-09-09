@@ -9,7 +9,6 @@
     Properties :
 
     Methods :
-
 """
 
 # General modules
@@ -30,6 +29,10 @@ from StoneX.Sample import *
 
 
 class Stoner_Wohlfarth(Ferro):
+    """
+        Stoner_Wohlfarth class.
+        Depends on Ferro.
+    """
     def __init__(self):
         super().__init__()
 
@@ -37,23 +40,21 @@ class Stoner_Wohlfarth(Ferro):
         # Naming the model
         self.model = "Stoner_Wohlfarth"
 
-    # No need to define energy
-
     def calculate_energy(self, vsm):
         """
-            Calculate the energy for each parameters' values given by the vsm.
+            Calculate the energy for each parameter's values given by the vsm.
             The parameters are, in order : phi, H, theta
         """
 
         # sparse=True for saving memory
         # indexing : place the element in the index order
-        Ph, Hf, Th = np.meshgrid(
-            vsm.phi, vsm.H, self.theta,
+        Hf, Th = np.meshgrid(
+            vsm.H, self.theta,
             sparse=True, indexing='ij'
         )
 
         # Creating a masked array. All values unmasked.
-        self.E = np.ma.array(self.energy()(Ph, Hf, Th))
+        self.E = np.ma.array(self.energy()(vsm.angle[1], Hf, Th))
 
     def search_eq(self, E, eq):
         """
@@ -95,13 +96,10 @@ class Stoner_Wohlfarth(Ferro):
 
         return eq
 
-    def analyse_energy(self, vsm):
+    def set_memory(self, vsm):
         """
-            After calculating the energy depending on the parameters, search in
-            which state is the magnetization.
-            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
+            Defines the tables for storing calculated data.
         """
-
         # Creating an array for temperature change.
         # Only one possible value : T=0K
         self.rotations = np.zeros(1, dtype='object')
@@ -110,39 +108,42 @@ class Stoner_Wohlfarth(Ferro):
         self.rotations[0] = Rotation(vsm.phi)
         self.rotations[0].info(self)
 
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in
+            which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
+        """
+        # Direction of the vsm
+        phi = vsm.angle[1]
+        angle_index = vsm.angle[0]
+
         # Index of the magnetization equilibrium, to start.
         # Correspond to the global energy minimum
         eq = np.argmin(self.E[0, 0])
 
-        # Loop over phi
-        for i, phi in enumerate(vsm.phi):
-            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+        # Creating a cycle (H, Mt, Ml, theta_eq)
+        cycle = Cycle(vsm.H, 4)
+        cycle.info(self, phi)
+        # Loop over H (max -> min -> max)
+        for j, H in enumerate(vsm.H):
+            # self.logger.debug("j = {}, H = {}Oe".format(
+            #    j, convert_field(H, 'cgs'))
+            # )
 
-            # Creating a cycle (H, Mt, Ml, theta_eq)
-            cycle = Cycle(vsm.H, 4)
-            cycle.info(self, phi)
-            # Loop over H (max -> min -> max)
-            for j, H in enumerate(vsm.H):
-                # self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+            eq = self.search_eq(self.E[j, :], eq)
 
-                eq = self.search_eq(self.E[i, j, :], eq)
+            cycle.data[j] = np.array([
+                H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi),
+                self.Ms * self.V_f * np.cos(self.theta[eq] - phi),
+                self.theta[eq]
+            ])
 
-                cycle.data[j] = np.array([
-                    H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi),
-                    self.Ms * self.V_f * np.cos(self.theta[eq] - phi),
-                    self.theta[eq]
-                ])
+            # Save energy data, to be plotted later
+            cycle.energy[j] = np.ma.copy(self.E[j, :])
 
-                # No need to save energy data
-                #cycle.energy[j] = np.ma.copy(self.E[i, j])
-
-            # Saving the cycle
-            self.rotations[0].cycles[i] = cycle
-            # Plotting for debug
-            if False:
-                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 2], '-ro')
-                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 1], '-go')
-                pl.show()
+        # Saving the cycle
+        self.rotations[0].cycles[angle_index] = cycle
 
 
 # Initial : Stoner_Wohlfarth, AntiFerro, Ferro
@@ -180,8 +181,6 @@ class Garcia_Otero(Meiklejohn_Bean):
         self.tau_mes = 100       #measurement mean time, in s
 
     # No need to define energy, same as Meiklejohn_Bean
-
-
 
     def masking_energy(self, phiIdx, HIdx, eqIdx):
         """
@@ -829,8 +828,6 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
                 # Saving the cycle
                 self.rotations[k].cycles[i] = cycle
-
-
 
 
 class Double_MacroSpin(AntiFerro_Spin, Rotatable_AF):
