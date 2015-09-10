@@ -164,6 +164,9 @@ class Meiklejohn_Bean(AntiFerro, Stoner_Wohlfarth):
 
 
 class Garcia_Otero(Meiklejohn_Bean):
+    """
+        Garcia Otero model.
+    """
     def __init__(self):
         # Initiating subclasses
         super().__init__()
@@ -234,12 +237,13 @@ class Garcia_Otero(Meiklejohn_Bean):
 
         return eqIdx
 
-    def calculate_magnetization(self, phi, eqIdx):
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
             Calculate the magnetization, only using the local minimum state.
             Will be redefined in Franco_Conde to integrate all the available
             states.
-            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Arguments : self, phi, HIdx, eqIdx. (to be compatible with Franco-
+            Conde)
             Return Mt, Ml.
         """
         return self.Ms * self.V_f * np.sin(self.theta[eqIdx] - phi), \
@@ -301,7 +305,7 @@ class Garcia_Otero(Meiklejohn_Bean):
                 eq = self.masking_energy(j, eq)
 
                 # Calculating the magnetization
-                Mt, Ml = self.calculate_magnetization(phi, eq)
+                Mt, Ml = self.calculate_magnetization(phi, j, eq)
 
                 # Storing the results (H, Mt, Ml, theta)
                 cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
@@ -312,6 +316,10 @@ class Garcia_Otero(Meiklejohn_Bean):
 
 
 class Franco_Conde(Garcia_Otero):
+    """
+        Franco-Conde model, based on Garcia-Otero.
+        Only the calcul of the magnetization differs.
+    """
     def __init__(self):
         # Initiating subclasses
         super().__init__()
@@ -323,14 +331,15 @@ class Franco_Conde(Garcia_Otero):
     # Same energy function as Garcia_Otero
 
     # Redifining only calculate_magnetization
-    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
-            Calculate the magnetization, by integrating all the available states.
-            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Calculate the magnetization, by integrating all the available
+            states.
+            Arguments : self, phi, HIdx, eqIdx.
             Return Mt, Ml.
         """
-        # Energy array
-        E = self.E[phiIdx, HIdx]
+        # View of the energy array
+        E = self.E[HIdx, :]
 
         # Probability array
         P = np.exp(- E / k_B / self.T)
@@ -346,8 +355,10 @@ class Franco_Conde(Garcia_Otero):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
-        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) \
+            / np.ma.sum(P)
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) \
+            / np.ma.sum(P)
 
         return Mt, Ml
 
