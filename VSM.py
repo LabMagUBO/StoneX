@@ -272,7 +272,7 @@ class VSM(object):
             self.logger.info("Calculating energy...")
             domain.calculate_energy(self)
 
-            self.logger.info("Analysing energy...")
+            self.logger.info("Starting analyze...")
             domain.analyse_energy(self)
 
         # Calculating and plotting
@@ -285,7 +285,6 @@ class VSM(object):
         # Freeing memory
         self.logger.debug("Cleaning domain's data...")
         self.clean(domain)
-
 
     def process_cycles(self, domain):
         """
