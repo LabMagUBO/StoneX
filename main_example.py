@@ -4,7 +4,7 @@
 """
     Main program file example.
 
-    StoneX V1.1 compatible.
+    StoneX V1.2 compatible.
     Date : 15 sept. 2015
 """
 
