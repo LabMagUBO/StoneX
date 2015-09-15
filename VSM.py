@@ -330,7 +330,8 @@ class VSM(object):
         # The energy table
         del(domain.E)
 
-        # Energy table for each T and phi value
-        for k, rot in enumerate(domain.rotations):
-            for j, cycle in enumerate(rot.cycles):
-                del(cycle.energy)       # delete the energy[field] array
+        if self.plot_energyLandscape or self.plot_energyPath:
+            # Energy table for each T and phi value
+            for k, rot in enumerate(domain.rotations):
+                for j, cycle in enumerate(rot.cycles):
+                    del(cycle.energy)       # delete the energy[field] array
