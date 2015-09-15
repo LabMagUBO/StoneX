@@ -96,6 +96,18 @@ class Stoner_Wohlfarth(Ferro):
 
         return eq
 
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
+        """
+            Calculate the magnetization, only using the local minimum state.
+            Will be redefined in Franco_Conde to integrate all the available
+            states.
+            Arguments : self, phi, HIdx, eqIdx. (to be compatible with Franco-
+            Conde)
+            Return Mt, Ml.
+        """
+        return self.Ms * self.V_f * np.sin(self.theta[eqIdx] + phi), \
+            self.Ms * self.V_f * np.cos(self.theta[eqIdx] + phi)
+
     def set_memory(self, vsm):
         """
             Defines the tables for storing calculated data.
@@ -131,12 +143,15 @@ class Stoner_Wohlfarth(Ferro):
             #    j, convert_field(H, 'cgs'))
             # )
 
+            # Finding equilibrium
             eq = self.search_eq(self.E[j, :], eq)
 
+            # Calculating the magnetization
+            Mt, Ml = self.calculate_magnetization(phi, j, eq)
+
+            # Storing the results
             cycle.data[j] = np.array([
-                H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi),
-                self.Ms * self.V_f * np.cos(self.theta[eq] - phi),
-                self.theta[eq]
+                H, Mt, Ml, self.theta[eq]
             ])
 
             # Save energy data, to be plotted later
@@ -225,7 +240,8 @@ class Garcia_Otero(Meiklejohn_Bean):
 
             # Searching the minimum
             mini = np.ma.min(self.E[HIdx, :])
-            # If the minimum over the zone is the same that the eq energy
+
+            # If the minimum over the zone is the same that the eq energy
             if mini == self.E[HIdx, eqIdx]:
                 # finish the loop
                 break
@@ -237,17 +253,7 @@ class Garcia_Otero(Meiklejohn_Bean):
 
         return eqIdx
 
-    def calculate_magnetization(self, phi, HIdx, eqIdx):
-        """
-            Calculate the magnetization, only using the local minimum state.
-            Will be redefined in Franco_Conde to integrate all the available
-            states.
-            Arguments : self, phi, HIdx, eqIdx. (to be compatible with Franco-
-            Conde)
-            Return Mt, Ml.
-        """
-        return self.Ms * self.V_f * np.sin(self.theta[eqIdx] - phi), \
-            self.Ms * self.V_f * np.cos(self.theta[eqIdx] - phi)
+    # No need to redefine calculate_magnetization
 
     # Refining set_memory to store data over T
     def set_memory(self, vsm):
@@ -359,9 +365,9 @@ class Franco_Conde(Garcia_Otero):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) \
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta + phi)) \
             / np.ma.sum(P)
-        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) \
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta + phi)) \
             / np.ma.sum(P)
 
         return Mt, Ml
@@ -834,9 +840,9 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) \
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta + phi)) \
             / np.ma.sum(P)
-        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) \
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta + phi)) \
             / np.ma.sum(P)
 
         return Mt, Ml
