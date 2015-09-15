@@ -69,7 +69,7 @@ def set_domain():
         Franco_Conde, Rotatable_AF, Double_MacroSpin
     """
     # Create the domain, with argument (model, 'folder_name')
-    domain = StoneX.create_domain(StoneX.Meiklejohn_Bean, 'test_signe')
+    domain = StoneX.create_domain(StoneX.Meiklejohn_Bean, 'example')
 
     # Setting the domain's temperature
     domain.T = 10
