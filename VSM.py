@@ -219,6 +219,10 @@ class VSM(object):
         self.sample = sample
 
     def measure(self):
+        """
+            Launch the measure on the sample, which can have one or more
+            domains.
+        """
         self.logger.info("Starting measuring {}".format(self.sample.name))
 
         # Depending if the sample is single-domain or multiple domains
@@ -249,48 +253,64 @@ class VSM(object):
             # Processing the sample
             self.process_cycles(self.sample)
 
-    #@profile
     def measure_domain(self, domain):
         """
             Method to measure a domain.
         """
-        self.logger.info("Calculating energy...")
-        #self.logger.info("Number of state to calculate : {}".format(self.H.size*self.phi.size*self.sample.theta.size*self.sample.alpha.size))
-        domain.calculate_energy(self)
+        # Create the sample's table to store data
+        domain.set_memory(self)
 
-        #self.logger.debug("Memory usage : sample {}Mib".format(sys.getsizeof(self.sample.E) * self.sample.E.size / 1024**2))
-        #self.logger.warn(type(self.sample.E[0, 0, 0, 0]))
-        #self.logger.warn(self.sample.E.shape)
-        #self.logger.warn(self.sample.E.size)
+        # Rotation of the VSM over phi
+        for i, phi in enumerate(self.phi):
+            # Setting the new angle
+            self.logger.info(
+                "New angle : phi = {}deg".format(np.degrees(phi))
+            )
+            self.angle = (i, phi)
 
-        self.logger.info("Analysing_energy...")
-        domain.analyse_energy(self)
-        #
+            # Calculate the energy table
+            self.logger.info("Calculating energy...")
+            domain.calculate_energy(self)
+
+            self.logger.info("Starting analyze...")
+            domain.analyse_energy(self)
+
+        # Calculating and plotting
+        self.logger.info("Processing cycles...")
         self.process_cycles(domain)
 
+        # Plotting the rotation
+        # self.process_rotation(self, domain)
+
         # Freeing memory
-        #del(domain.E)
+        self.logger.debug("Cleaning domain's data...")
+        self.clean(domain)
 
-
-    #@profile
     def process_cycles(self, domain):
         """
-            Analyse (ie calculate the coercive fields and others) the sample's cycles.
+            Analyse the sample's cycle (ie calculate the coercive fields
+            and others).
             All the calculated properties are stored in sample.attrib
             Calculated properties :
                 — Hc1, Hc2
                 — Mt1, Mt2
                 – Mr1, Mr2
         """
-        self.logger.info("Processing cycles...")
+
         for k, rot in enumerate(domain.rotations):
             rot.process()
-            rot.plot(domain.name, plot_cycles=self.plot_cycles, plot_azimuthal=self.plot_azimuthal, plot_energyPath=self.plot_energyPath, plot_energyLandscape=self.plot_energyLandscape)
+            rot.plot(
+                domain.name,
+                plot_cycles=self.plot_cycles,
+                plot_azimuthal=self.plot_azimuthal,
+                plot_energyPath=self.plot_energyPath,
+                plot_energyLandscape=self.plot_energyLandscape
+            )
 
             if self.export_data:
                 rot.export(domain.name)
 
-        if self.plot_T :
+        if self.plot_T:
             # Creating a sample's attribute to contain the (Hc, He, Mr, Mt…)
             domain.evolT = Tevol(self)
 
@@ -302,3 +322,16 @@ class VSM(object):
 
             if self.export_data:
                 domain.evolT.export(domain.name)
+
+    def clean(self, domain):
+        """
+            Delete data to reduce memory consumption.
+        """
+        # The energy table
+        del(domain.E)
+
+        if self.plot_energyLandscape or self.plot_energyPath:
+            # Energy table for each T and phi value
+            for k, rot in enumerate(domain.rotations):
+                for j, cycle in enumerate(rot.cycles):
+                    del(cycle.energy)       # delete the energy[field] array

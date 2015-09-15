@@ -48,7 +48,7 @@ class Domain_base():
 class Ferro(Domain_base):
     """
         Ferromagnetic domain.
-        Different energies are coded :
+        Different energies are implemented :
         — Zeeman
         — Uniaxial anisotropy
         — Biquadratic anisotropy
@@ -59,15 +59,22 @@ class Ferro(Domain_base):
 
         self.logger.debug("Init. Class Ferro")
         # Magnetization
-        self.Ms = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)      #magnetization of Py in A/m, 400 μemu / 1cm2 / 10nm
+        # magnetization of Py in A/m, 400 μemu / 1cm2 / 10nm
+        self.Ms = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)
         self.V_f = (500 * 1e-9)**2 * 10e-9
-        self.K_f = convert_field(2, 'si') * mu_0 * self.Ms / 2   #2 Oe uniaxial anisotropy
+
+        # 2 Oe uniaxial anisotropy
+        self.K_f = convert_field(2, 'si') * mu_0 * self.Ms / 2
         self.gamma_f = 0
+
+        # Biquadratic anisotropy
         self.K_bq = 0
         self.gamma_bq = 0
-        self.K_iso = 0      #isotropy energy
 
-        # Theta
+        # Isotropic energy
+        self.K_iso = 0
+
+        # Theta, 1 degree step by default
         self.theta = (1, 'deg')
 
     def __str__(self):
