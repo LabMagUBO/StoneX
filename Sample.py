@@ -22,7 +22,6 @@ from StoneX.Logging import *
 from StoneX.Cycles import *
 
 
-
 class Domain_base():
     def __init__(self):
         # Creating logger for all children classes
@@ -46,11 +45,10 @@ class Domain_base():
         return txt
 
 
-
 class Ferro(Domain_base):
     """
         Ferromagnetic domain.
-        Different energies are coded :
+        Different energies are implemented :
         — Zeeman
         — Uniaxial anisotropy
         — Biquadratic anisotropy
@@ -61,15 +59,22 @@ class Ferro(Domain_base):
 
         self.logger.debug("Init. Class Ferro")
         # Magnetization
-        self.Ms = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)      #magnetization of Py in A/m, 400 μemu / 1cm2 / 10nm
+        # magnetization of Py in A/m, 400 μemu / 1cm2 / 10nm
+        self.Ms = 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9)
         self.V_f = (500 * 1e-9)**2 * 10e-9
-        self.K_f = convert_field(2, 'si') * mu_0 * self.Ms / 2   #2 Oe uniaxial anisotropy
+
+        # 2 Oe uniaxial anisotropy
+        self.K_f = convert_field(2, 'si') * mu_0 * self.Ms / 2
         self.gamma_f = 0
+
+        # Biquadratic anisotropy
         self.K_bq = 0
         self.gamma_bq = 0
-        self.K_iso = 0      #isotropy energy
 
-        # Theta
+        # Isotropic energy
+        self.K_iso = 0
+
+        # Theta, 1 degree step by default
         self.theta = (1, 'deg')
 
     def __str__(self):
@@ -124,11 +129,18 @@ Ferro :
             self._theta = np.arange(0, 2*np.pi, step)
 
     def energy(self):
-        isotropic = lambda phi, th: self.K_iso * self.V_f * np.sin(th - phi)**2
-        zeeman = lambda phi, H, th: - mu_0 * H * self.V_f * self.Ms * np.cos(th - phi)
-        uniaxial = lambda th: self.K_f * self.V_f * np.sin(th - self.gamma_f)**2
-        biquadratic = lambda th: self.K_bq * self.V_f * np.sin(th - self.gamma_bq)**2 * np.cos(th - self.gamma_bq)**2
-        return lambda phi, H, th: zeeman(phi, H, th) + uniaxial(th) + biquadratic(th) + isotropic(phi, th)
+        isotropic = lambda phi, th: \
+            self.K_iso * self.V_f * np.sin(th + phi)**2
+        zeeman = lambda phi, H, th: \
+            - mu_0 * H * self.V_f * self.Ms * np.cos(th + phi)
+        uniaxial = lambda th: \
+            self.K_f * self.V_f * np.sin(th - self.gamma_f)**2
+        biquadratic = lambda th: \
+            self.K_bq * self.V_f * np.sin(th - self.gamma_bq)**2 \
+            * np.cos(th - self.gamma_bq)**2
+
+        return lambda phi, H, th: zeeman(phi, H, th) + \
+            uniaxial(th) + biquadratic(th) + isotropic(phi, th)
 
 
 class AntiFerro(Domain_base):
@@ -150,6 +162,7 @@ Anti-Ferro :
 
     # No energy function.
 
+
 class AntiFerro_Rotatable(AntiFerro):
     def __init__(self):
         super().__init__()
@@ -157,12 +170,13 @@ class AntiFerro_Rotatable(AntiFerro):
         self.logger.debug("Init. Class AntiFerro_rotatable")
 
         self.alpha = (1, 'deg')
-        self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / (1e-4 * 10 * 1e-9) / 2 * 100 # K_f * 10
+        self.K_af = convert_field(2, 'si') * mu_0 * 400 * 1e-6 * 1e-3 / \
+            (1e-4 * 10 * 1e-9) / 2 * 100  # K_f * 10
         self.Bq_af = 0      # Biquadratic anisotropy
 
     def __str__(self):
         txt = super().__str__()
-        txt +="""
+        txt += """
     Rotatable:
         alpha = {} deg step
         K_af = {} J/m**3
@@ -201,8 +215,12 @@ class AntiFerro_Rotatable(AntiFerro):
             self._alpha = np.arange(0, 2*np.pi, step)
 
     def energy(self):
-        uniaxial = lambda alph: self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
-        biquadratic = lambda alph: self.Bq_af * self.V_af * np.sin(2*(alph - self.gamma_af))**2
+        uniaxial = lambda alph: \
+            self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
+
+        biquadratic = lambda alph: \
+            self.Bq_af * self.V_af * np.sin(2*(alph - self.gamma_af))**2
+
         return lambda alph: uniaxial(alph) + biquadratic(alph)
 
 
@@ -224,8 +242,11 @@ class AntiFerro_Spin(AntiFerro_Rotatable):
 
     # Same property as AntiFerro_rotatable
     def energy(self):
-        zeeman = lambda phi, H, alph: - mu_0 * H * self.V_af * self.M_af * np.cos(alph - phi)
-        return lambda phi, H, alph: zeeman(phi, H, alph) + AntiFerro_Rotatable.energy(self)(alph)
+        zeeman = lambda phi, H, alph: \
+            - mu_0 * H * self.V_af * self.M_af * np.cos(alph + phi)
+
+        return lambda phi, H, alph: \
+            zeeman(phi, H, alph) + AntiFerro_Rotatable.energy(self)(alph)
 
 
 def create_domain(model, name='test', mkdir=True):
@@ -284,6 +305,7 @@ Model : {}
 
 
     return Domain()
+
 
 def create_sample(domain, d):
     """

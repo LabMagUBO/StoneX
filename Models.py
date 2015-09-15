@@ -9,27 +9,30 @@
     Properties :
 
     Methods :
-
 """
 
 # General modules
 import sys
 import numpy as np
-#import sympy as sp
+# import sympy as sp
 import scipy.ndimage as nd
-#from sympy.abc import x
+# from sympy.abc import x
 from matplotlib import pylab as pl
 
 # My own modules
-#from constants import *
+# from constants import *
 from StoneX.Physics import *
 from StoneX.Logging import *
 from StoneX.Sample import *
-#from StoneX.models import *
-#from StoneX.constants import *
+# from StoneX.models import *
+# from StoneX.constants import *
 
 
 class Stoner_Wohlfarth(Ferro):
+    """
+        Stoner_Wohlfarth class.
+        Depends on Ferro.
+    """
     def __init__(self):
         super().__init__()
 
@@ -37,24 +40,26 @@ class Stoner_Wohlfarth(Ferro):
         # Naming the model
         self.model = "Stoner_Wohlfarth"
 
-    # No need to define energy
-
     def calculate_energy(self, vsm):
         """
-            Calculate the energy for each parameters' values given by the vsm.
+            Calculate the energy for each parameter's values given by the vsm.
             The parameters are, in order : phi, H, theta
         """
 
         # sparse=True for saving memory
         # indexing : place the element in the index order
-        Ph, Hf, Th = np.meshgrid(vsm.phi, vsm.H, self.theta, sparse=True, indexing='ij')
+        Hf, Th = np.meshgrid(
+            vsm.H, self.theta,
+            sparse=True, indexing='ij'
+        )
 
         # Creating a masked array. All values unmasked.
-        self.E = np.ma.array(self.energy()(Ph, Hf, Th))
+        self.E = np.ma.array(self.energy()(vsm.angle[1], Hf, Th))
 
     def search_eq(self, E, eq):
         """
-            Search the equilibrium state «eq» depending on the initial state «ini» and the energy landscape «E».
+            Search the equilibrium state «eq» depending on the initial state
+             «ini» and the energy landscape «E».
             Return the index of equilibrium
         """
         # stopping criteria
@@ -66,14 +71,18 @@ class Stoner_Wohlfarth(Ferro):
         while not found:
             k += 1
 
-            #print("calc barrier")
-            barrier = np.array([E[ (eq - 1) % E.size] - E[eq], E[ (eq + 1) % E.size] - E[eq]])
+            # print("calc barrier")
+            barrier = np.array([
+                E[(eq - 1) % E.size] - E[eq],
+                E[(eq + 1) % E.size] - E[eq]
+            ])
 
             if (barrier >= 0).all():
                 # local minimum
                 found = True
             elif barrier[0] == barrier[1]:
-                self.logger.warn("Symmetrical unstable equilibrium. Choosing next largeur index (theta[idx+1]).")
+                self.logger.warn("Symmetrical unstable equilibrium.\
+                                Choosing next largeur index (theta[idx+1]).")
                 eq = (eq + 1) % E.size
             else:
                 idx = np.argmin(barrier)
@@ -87,47 +96,69 @@ class Stoner_Wohlfarth(Ferro):
 
         return eq
 
-    def analyse_energy(self, vsm):
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
-            After calculating the energy depending on the parameters, search in which state is the magnetization.
-            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
+            Calculate the magnetization, only using the local minimum state.
+            Will be redefined in Franco_Conde to integrate all the available
+            states.
+            Arguments : self, phi, HIdx, eqIdx. (to be compatible with Franco-
+            Conde)
+            Return Mt, Ml.
         """
+        return self.Ms * self.V_f * np.sin(self.theta[eqIdx] + phi), \
+            self.Ms * self.V_f * np.cos(self.theta[eqIdx] + phi)
 
-        # Creating an array for temperature change. Only one possible value : T=0K
+    def set_memory(self, vsm):
+        """
+            Defines the tables for storing calculated data.
+        """
+        # Creating an array for temperature change.
+        # Only one possible value : T=0K
         self.rotations = np.zeros(1, dtype='object')
 
         # Data stored in Rotation object.
         self.rotations[0] = Rotation(vsm.phi)
         self.rotations[0].info(self)
 
-        # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
-        eq = np.argmin(self.E[0, 0])
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in
+            which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta_eq]]
+        """
+        # Direction of the vsm
+        phi = vsm.angle[1]
+        angle_index = vsm.angle[0]
 
-        # Loop over phi
-        for i, phi in enumerate(vsm.phi):
-            self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+        # Index of the magnetization equilibrium, to start.
+        # Correspond to the global energy minimum
+        eq = np.argmin(self.E[0, :])
 
-            # Creating a cycle (H, Mt, Ml, theta_eq)
-            cycle = Cycle(vsm.H, 4)
-            cycle.info(self, phi)
-            # Loop over H (max -> min -> max)
-            for j, H in enumerate(vsm.H):
-                #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+        # Creating a cycle (H, Mt, Ml, theta_eq)
+        cycle = Cycle(vsm.H, 4)
+        cycle.info(self, phi)
+        # Loop over H (max -> min -> max)
+        for j, H in enumerate(vsm.H):
+            # self.logger.debug("j = {}, H = {}Oe".format(
+            #    j, convert_field(H, 'cgs'))
+            # )
 
-                eq = self.search_eq(self.E[i, j, :], eq)
+            # Finding equilibrium
+            eq = self.search_eq(self.E[j, :], eq)
 
-                cycle.data[j] = np.array([H, self.Ms * self.V_f * np.sin(self.theta[eq] - phi), self.Ms * self.V_f * np.cos(self.theta[eq] - phi), self.theta[eq]])
+            # Calculating the magnetization
+            Mt, Ml = self.calculate_magnetization(phi, j, eq)
 
-                # No need to save energy data
-                #cycle.energy[j] = np.ma.copy(self.E[i, j])
+            # Storing the results
+            cycle.data[j] = np.array([
+                H, Mt, Ml, self.theta[eq]
+            ])
 
-            # Saving the cycle
-            self.rotations[0].cycles[i] = cycle
-            # Plotting for debug
-            if False:
-                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 2], '-ro')
-                pl.plot(convert_field(self.rotations.cycles[i].data[:, 0], 'cgs'), self.rotations.cycles[i].data[:, 1], '-go')
-                pl.show()
+            # Save energy data, to be plotted later
+            cycle.energy[j] = np.ma.copy(self.E[j, :])
+
+        # Saving the cycle
+        self.rotations[0].cycles[angle_index] = cycle
 
 
 # Initial : Stoner_Wohlfarth, AntiFerro, Ferro
@@ -139,7 +170,7 @@ class Meiklejohn_Bean(AntiFerro, Stoner_Wohlfarth):
         self.model = "Meiklejohn_Bean"
 
         self.S = (200e-9)**2
-        self.J_ex = 11e-3 * 1e-7 * 1e4             #J/m**2
+        self.J_ex = 11e-3 * 1e-7 * 1e4       # J/m**2
 
     # Redefining only the energy
     def energy(self):
@@ -148,6 +179,9 @@ class Meiklejohn_Bean(AntiFerro, Stoner_Wohlfarth):
 
 
 class Garcia_Otero(Meiklejohn_Bean):
+    """
+        Garcia Otero model.
+    """
     def __init__(self):
         # Initiating subclasses
         super().__init__()
@@ -156,31 +190,31 @@ class Garcia_Otero(Meiklejohn_Bean):
         # Naming the model
         self.model = "Garcia_Otero"
 
-        ## Additionnal parameters
+        # Additionnal parameters
         # Temperature
-        self.T = 300     #K
+        self.T = 300            # K
 
-        ## Néel relaxation parameters
-        self.f0 = 1e9         #attempt frequency, in Hz
-        self.tau_mes = 100       #measurement mean time, in s
+        # Néel relaxation parameters
+        self.f0 = 1e9           # attempt frequency, in Hz
+        self.tau_mes = 100      # measurement mean time, in s
 
     # No need to define energy, same as Meiklejohn_Bean
 
-
-
-    def masking_energy(self, phiIdx, HIdx, eqIdx):
+    def masking_energy(self, HIdx, eqIdx):
         """
             Method for masking all non-reachable states above the equilibrium.
-            After searching all the available states, return the new equilibrium position.
+            After searching all the available states, return the new
+            equilibrium position.
             The non-reachable states are masqued in self.E
         """
         # Loop over local minimum
         while True:
             # No forgetting to unmask the array
-            self.E[phiIdx, HIdx, :].mask = False
+            self.E[HIdx, :].mask = False
 
             # Masking all the values above energy state equilibrium
-            mask = self.E[phiIdx, HIdx, :] > self.E[phiIdx, HIdx, eqIdx] + np.log(self.f0 * self.tau_mes) * k_B * self.T
+            mask = self.E[HIdx, :] > self.E[HIdx, eqIdx] \
+                + np.log(self.f0 * self.tau_mes) * k_B * self.T
 
             mask_lab, mask_num = nd.measurements.label(np.logical_not(mask))
 
@@ -188,101 +222,114 @@ class Garcia_Otero(Meiklejohn_Bean):
             right = mask_lab[-1]
             # if the two extrem are reachable
             if left and right and (left != right):
-                #replacement mask
+                # replacement mask
                 mask_replace = mask_lab == left
                 mask_lab[mask_replace] = right
 
                 # relabelling the mask (not useful, time consuming)
-                #labels = np.unique(mask_lab)
-                #mask_lab = np.searchsorted(labels, mask_lab)
+                # labels = np.unique(mask_lab)
+                # mask_lab = np.searchsorted(labels, mask_lab)
 
-            #Zone where the equilibrium is
+            # Zone where the equilibrium is
             zone_eq = mask_lab[eqIdx]
             # Creating a new mask
             new_mask = mask_lab != zone_eq
 
-            #Applying the mask
-            self.E[phiIdx, HIdx, new_mask] = np.ma.masked
+            # Applying the mask
+            self.E[HIdx, new_mask] = np.ma.masked
 
             # Searching the minimum
-            mini = np.ma.min(self.E[phiIdx, HIdx, :])
-            # If the minimum over the zone is the same that the eq energy
-            if mini == self.E[phiIdx, HIdx, eqIdx]:
+            mini = np.ma.min(self.E[HIdx, :])
+
+            # If the minimum over the zone is the same that the eq energy
+            if mini == self.E[HIdx, eqIdx]:
                 # finish the loop
                 break
             else:
                 # new equilibrium
                 self.logger.warn("old eq {}".format(eqIdx))
-                eqIdx = self.E[phiIdx, HIdx, :].argmin()
+                eqIdx = self.E[HIdx, :].argmin()
                 self.logger.warn("new eq {}".format(eqIdx))
 
         return eqIdx
 
-    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
-        """
-            Calculate the magnetization, only using the local minimum state.
-            Will be redefined in Franco_Conde to integrate all the available states.
-            Arguments : self, phi, phiIdx, HIdx, eqIdx.
-            Return Mt, Ml.
-        """
-        return self.Ms * self.V_f * np.sin(self.theta[eqIdx] - phi), self.Ms * self.V_f * np.cos(self.theta[eqIdx] - phi)
+    # No need to redefine calculate_magnetization
 
-    # Redefining analyse_energy from Stoner_Wohlfarth
-    def analyse_energy(self, vsm):
+    # Refining set_memory to store data over T
+    def set_memory(self, vsm):
         """
-            After calculating the energy depending on the parameters, search in which state is the magnetization.
-            Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
+            Defines the tables for storing calculated data.
         """
-        # Creating an array for temperature change
+        # Creating an array for temperature change.
         self.rotations = np.zeros(vsm.T.size, dtype='object')
 
         # Loop over vsm.T
         for k, T in enumerate(vsm.T):
-            # Verbose
-            self.logger.info("Changing temperature : T = {} K".format(T))
             # Changing the sample's temperature
             self.T = T
 
+            # Data stored in Rotation object.
             # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq])
             self.rotations[k] = Rotation(vsm.phi)
             self.rotations[k].info(self)
 
-            # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
-            eq = np.argmin(self.E[0, 0])
+    # Redefining analyse_energy from Stoner_Wohlfarth
+    def analyse_energy(self, vsm):
+        """
+            After calculating the energy depending on the parameters, search in
+            which state is the magnetization.
+            Returns the magnetization path : tab[phi, [H, theta, Mt, Ml]]
+        """
+        # Direction of the vsm
+        phi = vsm.angle[1]
+        angle_index = vsm.angle[0]
 
-            # Loop over phi
-            for i, phi in enumerate(vsm.phi):
-                self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+        # Loop over vsm.T
+        for k, T in enumerate(vsm.T):
+            # Changing the sample's temperature
+            self.T = T
+            self.logger.info("Changing temperature : T = {} K".format(T))
 
-                # Creating a cycle
-                cycle = Cycle(vsm.H, 4)
-                cycle.info(self, phi)
+            # Index of the magnetization equilibrium, to start.
+            # Correspond to the global energy minimum
+            eq = np.argmin(self.E[0, :])
 
-                # Loop over H (max -> min -> max)
-                for j, H in enumerate(vsm.H):
-                    # A little verbose
-                    #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
-                    # Unmasking the energy
-                    self.E[i, j, :].mask = False
+            # Creating a cycle
+            cycle = Cycle(vsm.H, 4)
+            cycle.info(self, phi)
 
-                    # Adjusting equilibrium
-                    eq = self.search_eq(self.E[i, j], eq)
+            self.logger.info("Loop over H.")
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                # Unmasking the energy
+                self.E[j, :].mask = False
 
-                    # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
-                    eq = self.masking_energy(i, j, eq)
+                # Adjusting equilibrium
+                eq = self.search_eq(self.E[j, :], eq)
 
-                    # Calculating the magnetization
-                    Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+                # Defining all the accessible states, depending on the
+                # temperature (changing equilibrium if necessary)
+                eq = self.masking_energy(j, eq)
 
-                    # Storing the results (H, Mt, Ml, theta)
-                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
-                    cycle.energy[j] = np.ma.copy(self.E[i, j])
+                # Calculating the magnetization
+                Mt, Ml = self.calculate_magnetization(phi, j, eq)
 
-                # Saving cycle
-                self.rotations[k].cycles[i] = cycle
+                # Storing the results (H, Mt, Ml, theta)
+                cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq]])
+
+                # Storing the energy landscape
+                if vsm.plot_energyLandscape or vsm.plot_energyPath:
+                    cycle.energy[j] = np.ma.copy(self.E[j, :])
+
+            # Saving cycle
+            self.rotations[k].cycles[angle_index] = cycle
 
 
 class Franco_Conde(Garcia_Otero):
+    """
+        Franco-Conde model, based on Garcia-Otero.
+        Only the calcul of the magnetization differs.
+    """
     def __init__(self):
         # Initiating subclasses
         super().__init__()
@@ -294,14 +341,15 @@ class Franco_Conde(Garcia_Otero):
     # Same energy function as Garcia_Otero
 
     # Redifining only calculate_magnetization
-    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
-            Calculate the magnetization, by integrating all the available states.
-            Arguments : self, phi, phiIdx, HIdx, eqIdx.
+            Calculate the magnetization, by integrating all the available
+            states.
+            Arguments : self, phi, HIdx, eqIdx.
             Return Mt, Ml.
         """
-        # Energy array
-        E = self.E[phiIdx, HIdx]
+        # View of the energy array
+        E = self.E[HIdx, :]
 
         # Probability array
         P = np.exp(- E / k_B / self.T)
@@ -317,8 +365,10 @@ class Franco_Conde(Garcia_Otero):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
-        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta + phi)) \
+            / np.ma.sum(P)
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta + phi)) \
+            / np.ma.sum(P)
 
         return Mt, Ml
 
@@ -332,14 +382,16 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         # Naming the model
         self.model = "Rotatable_AF"
 
-
     # Redefining the energy function
     def energy(self):
         exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
-        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_Rotatable.energy(self)(alph) + exchange(alph, th)
 
-    # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha degree of freedom.
-    #@profile
+        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) \
+            + AntiFerro_Rotatable.energy(self)(alph) \
+            + exchange(alph, th)
+
+    # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha
+    # degree of freedom.
     def calculate_energy(self, vsm):
         """
             Calculate the energy for each parameters' values given by the vsm.
@@ -348,10 +400,13 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
         # sparse=True for saving memory
         # indexing : place the element in the index order
-        Ph, Hf, Al, Th = np.meshgrid(vsm.phi, vsm.H, self.alpha, self.theta, sparse=True, indexing='ij')
+        Hf, Al, Th = np.meshgrid(
+            vsm.H, self.alpha, self.theta,
+            sparse=True, indexing='ij'
+        )
 
         # Creating a masked array. All values unmasked.
-        self.E = np.ma.array(self.energy()(Ph, Hf, Al, Th))
+        self.E = np.ma.array(self.energy()(vsm.angle[1], Hf, Al, Th))
 
     # Redefining from search_eq in Stoner_Wohlfarth
     def search_eq(self, E, eq):
@@ -463,7 +518,6 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
         pl.savefig(file)
         pl.close()
-
 
     def labelling_mask(self, E, eqIdx):
         """
@@ -638,10 +692,11 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         return tryIdx[-1], tryIdx
 
     # Redefining from Garcia_Otero
-    def masking_energy(self, phiIdx, HIdx, eqIdx):
+    def masking_energy(self, HIdx, eqIdx):
         """
             Method for masking all non-reachable states above the equilibrium.
-            After searching all the available states, return the new equilibrium position.
+            After searching all the available states, return the new
+            equilibrium position.
             The non-reachable states are masqued in self.E
         """
 
@@ -657,39 +712,42 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             k += 1
 
             # Labelling the mask from the energy landscape
-            mask_lab = self.labelling_mask(self.E[phiIdx, HIdx], eqIdx)
+            mask_lab = self.labelling_mask(self.E[HIdx, :, :], eqIdx)
 
-            #Zone where the equilibrium is
+            # Zone where the equilibrium is
             zone_eq = mask_lab[eqIdx[0], eqIdx[1]]
 
             # Creating a new mask, corresponding to the reachable zone
             mask_eq = mask_lab == zone_eq
 
-            #Applying the mask, masking all the unreachable states
-            self.E[phiIdx, HIdx, ~mask_eq] = np.ma.masked
+            # Applying the mask, masking all the unreachable states
+            self.E[HIdx, ~mask_eq] = np.ma.masked
 
             # Searching the minimum over the zone
-            mini = np.ma.min(self.E[phiIdx, HIdx, :, :])
+            mini = np.ma.min(self.E[HIdx, :, :])
 
             # If the minimum over the zone is the same that the eq energy
-            if mini == self.E[phiIdx, HIdx, eqIdx[0], eqIdx[1]]:
+            if mini == self.E[HIdx, eqIdx[0], eqIdx[1]]:
                 # Finish the loop
                 break
 
             else:
                 # Getting the previous labelled mask
-                oldMask_lab = self.labelling_mask(np.ma.copy(self.E[phiIdx, HIdx - 1]), eqIdx)
+                oldMask_lab = self.labelling_mask(
+                    np.ma.copy(self.E[HIdx - 1, :, :]), eqIdx
+                )
 
                 # Calculating the global minimun index
-                minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])
+                minIdx = np.ma.argmin(self.E[HIdx, :, :])
                 possibleIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])
 
-                # If only one zone including the two minima, ie old eq and new eq are in the same old zone
-                #if np.unique(oldMask_lab).size == 2:                       #old criteria. Landscape can have infinite zones, but only two are relevant
-                if oldMask_lab[possibleIdx[0], possibleIdx[1]] == oldMask_lab[eqIdx[0], eqIdx[1]]:
+                # If only one zone including the two minima, ie old eq and
+                # new eq are in the same old zone
+                # Landscape can have infinite zones, but only
+                # two are relevant
+                if oldMask_lab[possibleIdx[0], possibleIdx[1]] == \
+                oldMask_lab[eqIdx[0], eqIdx[1]]:
                     # Calculate the global minimum
-                    #minIdx = np.ma.argmin(self.E[phiIdx, HIdx, :, :])          #old command
-                    #eqIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])    # old command
                     eqIdx = possibleIdx
                     break
 
@@ -700,42 +758,72 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
                     debugPlot = False
                     if debugPlot:
                         dos = 'debugPlot/'
-                        self.debugplot_landscape(oldMask_lab, eqIdx, name='{}T{}_H{}_k{}_1oldMasklab'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(
+                            oldMask_lab,
+                            eqIdx,
+                            name='{}T{}_H{}_k{}_1oldMasklab'.format(
+                                dos, self.T, HIdx, k
+                            )
+                        )
 
-                        self.debugplot_landscape(mask_lab, name='{}T{}_H{}_k{}_2Masklab'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(
+                            mask_lab,
+                            name='{}T{}_H{}_k{}_2Masklab'.format(
+                                dos, self.T, HIdx, k
+                            )
+                        )
 
-                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], eqIdx, name='{}T{}_H{}_k{}_3Elandscape'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(
+                            self.E[HIdx, :, :],
+                            eqIdx,
+                            name='{}T{}_H{}_k{}_3Elandscape'.format(
+                                dos, self.T, HIdx, k
+                            )
+                        )
 
-                    # Trying to jump over the saddle point, giving a new index (unstable)
-                    eqIdx, tries = self.search_mountainCol(self.E[phiIdx, HIdx], oldMask_lab, eqIdx)
+                    # Trying to jump over the saddle point, giving a new
+                    # index (unstable)
+                    eqIdx, tries = self.search_mountainCol(
+                        self.E[HIdx, :, :], oldMask_lab, eqIdx
+                    )
 
                     # Debug plot
                     if debugPlot:
-                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], tries, tries[-1], name='{}T{}_H{}_k{}_4search_mountainPass'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(
+                            self.E[HIdx, :, :], tries, tries[-1],
+                            name='{}T{}_H{}_k{}_4search_mountainPass'.format(
+                                dos, self.T, HIdx, k
+                            )
+                        )
 
                     # Search stable equilibrium
-                    eqIdx, pathIdx = self.search_eq(self.E[phiIdx, HIdx], eqIdx)
+                    eqIdx, pathIdx = self.search_eq(self.E[HIdx, :, :], eqIdx)
 
                     # Debug plot
                     if debugPlot:
-                        self.debugplot_landscape(self.E[phiIdx, HIdx, :, :], pathIdx, eqIdx, name='{}T{}_H{}_k{}_5search_eq'.format(dos, self.T, HIdx, k))
+                        self.debugplot_landscape(
+                            self.E[HIdx, :, :], pathIdx, eqIdx, name='{}T{}_H{}_k{}_5search_eq'.format(
+                                dos, self.T, HIdx, k
+                            )
+                        )
 
             # If too much loop
             if k > 1000:
-                self.logger.error("Too much loop in masking energy. Unable to find the local minimum.")
+                self.logger.error("Too much loop in masking energy. \
+                    Unable to find the local minimum.")
                 break
 
         return eqIdx
 
     # Redefining calculate_magnetization from Franco_Conde
-    def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
+    def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
             Calculate the magnetization, by integrating all the available states.
             Arguments : self, phi, phiIdx, HIdx, eqIdx.
             Return Mt, Ml.
         """
         # Energy array
-        E = self.E[phiIdx, HIdx]
+        E = self.E[HIdx, :, :]
 
         # Probability array
         P = np.exp(- E / k_B / self.T)
@@ -743,7 +831,8 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         # Partition function
         Z = np.ma.sum(P)
 
-        # Testing if the sum is inf OR Z * Ms V_f ==0 (ie < 1e-308, depends on the cpu)
+        # Testing if the sum is inf OR Z * Ms V_f ==0 (ie < 1e-308, depends
+        # on the cpu)
         if np.isinf(Z) or Z * self.Ms * self.V_f == 0:
             # Only one state is accessible
             P[:] = 0
@@ -751,71 +840,71 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             Z = 1
 
         # Calculating magnetization
-        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta - phi)) / np.ma.sum(P)
-        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta - phi)) / np.ma.sum(P)
+        Ml = self.Ms * self.V_f * np.ma.sum(P * np.cos(self.theta + phi)) \
+            / np.ma.sum(P)
+        Mt = self.Ms * self.V_f * np.ma.sum(P * np.sin(self.theta + phi)) \
+            / np.ma.sum(P)
 
         return Mt, Ml
 
+    # No need to redefine set_memory
+
     # Redefining analyse_energy from Garcia_Otero
-    #@profile
     def analyse_energy(self, vsm):
         """
-            After calculating the energy depending on the parameters, search in which state is the magnetization.
-            Returns the magnetization path : tab[phi, [H, Mt, Ml, theta, alpha]]
+            After calculating the energy depending on the parameters, search in
+            which state is the magnetization.
+            Returns the magnetization path :
+                tab[phi, [H, Mt, Ml, theta, alpha]]
         """
-        # Creating an array for temperature change
-        self.rotations = np.zeros(vsm.T.size, dtype='object')
+        # Direction of the vsm
+        phi = vsm.angle[1]
+        angle_index = vsm.angle[0]
 
         # Loop over vsm.T
         for k, T in enumerate(vsm.T):
-            # Verbose
-            self.logger.info("Changing temperature : T = {} K".format(T))
             # Changing the sample's temperature
             self.T = T
+            self.logger.info("Changing temperature : T = {} K".format(T))
 
-            # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq, alpha_eq])
-            self.rotations[k] = Rotation(vsm.phi)
-            self.rotations[k].info(self)
-
-            # Index of the magnetization equilibrium, to start. Correspond to the global energy minimum
-            eq = np.argmin(self.E[0, 0])
+            # Index of the magnetization equilibrium, to start. Correspond to
+            # the global energy minimum
+            eq = np.argmin(self.E[0, :, :])
             thIdx = eq % self.theta.size
             alphIdx = np.floor(eq / self.theta.size)
             eq = np.array([alphIdx, thIdx])
 
-            # Loop over phi
-            for i, phi in enumerate(vsm.phi):
-                self.logger.debug("i= {}, Phi = {}deg".format(i, np.degrees(phi)))
+            # Creating a cycle
+            cycle = Cycle(vsm.H, 5)
+            cycle.info(self, phi)
 
-                # Creating a cycle
-                cycle = Cycle(vsm.H, 5)
-                cycle.info(self, phi)
+            self.logger.info("Loop over H.")
+            # Loop over H (max -> min -> max)
+            for j, H in enumerate(vsm.H):
+                # Unmasking the energy
+                self.E[j, :, :].mask = False
 
-                # Loop over H (max -> min -> max)
-                for j, H in enumerate(vsm.H):
-                    # A little verbose
-                    #self.logger.debug("j = {}, H = {}Oe".format(j, convert_field(H, 'cgs')))
+                # Adjusting equilibrium
+                eq, pathIdx = self.search_eq(self.E[j, :, :], eq)
 
-                    # Adjusting equilibrium
-                    eq, pathIdx = self.search_eq(self.E[i, j], eq)
+                # Defining all the accessible states, depending on the
+                # temperature (changing equilibrium if necessary)
+                eq = self.masking_energy(j, eq)
 
-                    # Defining all the accessible states, depending on the temperature (changing equilibrium if necessary)
-                    eq = self.masking_energy(i, j, eq)
+                # Calculating the magnetization
+                Mt, Ml = self.calculate_magnetization(phi, j, eq)
 
-                    # Calculating the magnetization
-                    Mt, Ml = self.calculate_magnetization(phi, i, j, eq)
+                # Storing the results (H, Mt, Ml, theta, alpha)
+                cycle.data[j] = np.array(
+                    [H, Mt, Ml, self.theta[eq[1]], self.alpha[eq[0]]]
+                )
 
-                    # Storing the results (H, Mt, Ml, theta, alpha)
-                    cycle.data[j] = np.array([H, Mt, Ml, self.theta[eq[1]], self.alpha[eq[0]]])
+                # Storing the energy landscape
+                if vsm.plot_energyLandscape or vsm.plot_energyPath:
+                    cycle.energy[j] = np.ma.copy(self.E[j, :, :])
 
-                    # Storing the energy landscape
-                    if vsm.plot_energyLandscape or vsm.plot_energyPath:
-                        cycle.energy[j] = np.ma.copy(self.E[i, j])
-
-                # Saving the cycle
-                self.rotations[k].cycles[i] = cycle
-
-
+            # Saving the cycle
+            self.rotations[k].cycles[angle_index] = cycle
 
 
 class Double_MacroSpin(AntiFerro_Spin, Rotatable_AF):
