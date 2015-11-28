@@ -403,6 +403,24 @@ class Cycle(object):
         header +="H (A/m) \t\tMt (Am**2) \t\tMl (Am**2) \t\t(theta, alpha, ...) (rad)"
         np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
 
+    def import_data(self, path):
+        """
+            Import the data cycle from the given path.
+        """
+        # Define the filename
+        file = "{0}/cycle_{1}_T{2}_phi{3}.dat".format(
+            path,
+            self.model,
+            round(self.T, 3),
+            round(np.degrees(self.phi), 3)
+        )
+
+        # Info
+        self.logger.info("Importing cycle data : {}".format(file))
+
+        # Exporting
+        self.data = np.loadtxt(file)
+
 
 class Rotation(object):
     def __init__(self, phiTab):
@@ -573,15 +591,40 @@ class Rotation(object):
             cycle.export(path)
 
         # Exporting the azimuthal data
-        file = "{0}/azimuthal_{1}_T{2}.dat".format(path, self.model, round(self.T, 0))
+        file = "{0}/azimuthal_{1}_T{2}.dat".format(
+            path,
+            self.model,
+            round(self.T, 0)
+        )
 
         # Verbose
         self.logger.info("Exporting azimuthal data : {}".format(file))
 
         # Export
         header = "Model = {0} \nT = {1}K \nMs = {2} A/m".format(self.model, self.T, self.Ms)
-        header +="phi(rad) \t\tHc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2(Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
+        header += "phi(rad) \t\tHc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2(Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
         np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
+
+    def import_data(self, path):
+        """
+            Import a data file
+        """
+        # Importing the cycles
+        for i, cycle in enumerate(self.cycles):
+            cycle.import_data(path)
+
+        # Importing the azimuthal data
+        file = "{0}/azimuthal_{1}_T{2}.dat".format(
+            path,
+            self.model,
+            round(self.T, 0)
+        )
+
+        # Verbose
+        self.logger.info("Importing azimuthal data : {}".format(file))
+
+        # Import
+        self.data = np.loadtxt(file)
 
 
 class Tevol(object):

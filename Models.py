@@ -113,12 +113,19 @@ class Stoner_Wohlfarth(Ferro):
             Defines the tables for storing calculated data.
         """
         # Creating an array for temperature change.
-        # Only one possible value : T=0K
+        # Only one possible value for SW model: T=0K
         self.rotations = np.zeros(1, dtype='object')
 
         # Data stored in Rotation object.
         self.rotations[0] = Rotation(vsm.phi)
         self.rotations[0].info(self)
+
+        # Loop over phi
+        for i, phi in enumerate(vsm.phi):
+            # Creating a cycle
+            cycle = Cycle(vsm.H, 4)
+            cycle.info(self, phi)
+            self.rotations[0].cycles[i] = cycle
 
     def analyse_energy(self, vsm):
         """
@@ -272,6 +279,13 @@ class Garcia_Otero(Meiklejohn_Bean):
             # Cycle containing all the data. Indexes : ([H, Mt, Ml, theta_eq])
             self.rotations[k] = Rotation(vsm.phi)
             self.rotations[k].info(self)
+
+            # Loop over phi
+            for i, phi in enumerate(vsm.phi):
+                # Creating a cycle
+                cycle = Cycle(vsm.H, 4)
+                cycle.info(self, phi)
+                self.rotations[k].cycles[i] = cycle
 
     # Redefining analyse_energy from Stoner_Wohlfarth
     def analyse_energy(self, vsm):

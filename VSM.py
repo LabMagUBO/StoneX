@@ -21,6 +21,7 @@
         — self.process_cycles() : plot all the graphs
 """
 import sys
+import os
 import numpy as np
 from StoneX.Physics import *
 from StoneX.Logging import *
@@ -55,6 +56,9 @@ class VSM(object):
         # self.export_azimuthal = True
         # self.export_T = True
 
+        # Memory (set to False to keep energy data in memory)
+        self.low_memory = True
+
     def __str__(self):
         """
             Return the VSM status when using print(vsm)
@@ -64,15 +68,16 @@ class VSM(object):
         Field : max = {} Oe, nb step = {}, step = {} Oe
         Phi : start = {}, stop = {}deg, step = {}deg
         T : start = {}K, stop = {}K, step = {}K
-        """.format( convert_field(self._H[0], 'cgs'),
-                    self._H.size,
-                    convert_field(self._H[0] - self._H[1], 'cgs'),
-                    np.degrees(self._phi[0]),
-                    np.degrees(self._phi[-1]),
-                    np.degrees((self._phi[-1]-self._phi[0])/(self._phi.size-1)) if (self._phi.size > 1) else "???",
-                    self._T[0],
-                    self._T[-1],
-                    (self._T[-1]-self._T[0])/(self._T.size-1) if (self._T.size > 1) else "???"
+        """.format(
+            convert_field(self._H[0], 'cgs'),
+            self._H.size,
+            convert_field(self._H[0] - self._H[1], 'cgs'),
+            np.degrees(self._phi[0]),
+            np.degrees(self._phi[-1]),
+            np.degrees((self._phi[-1]-self._phi[0])/(self._phi.size-1)) if (self._phi.size > 1) else "???",
+            self._T[0],
+            self._T[-1],
+            (self._T[-1]-self._T[0])/(self._T.size-1) if (self._T.size > 1) else "???"
         )
 
         str += "\nPlotting :\n\t cycles = {} \n\t azimuthal = {} \n\t energy Path = {} \n\t energy Landscape = {} \n\t T evol = {}".format(self.plot_cycles, self.plot_azimuthal, self.plot_energyPath, self.plot_energyLandscape, self.plot_T)
@@ -209,7 +214,7 @@ class VSM(object):
             if stop == start:
                 self.logger.warn("vsm.T cannot be empty. Use start < step strictly. Using stop=step")
                 stop = start + step
-            self._T = np.arange(start, stop, step)
+            self._T = np.arange(start, stop, step, dtype=float)
 
     def load(self, sample):
         """
@@ -233,7 +238,16 @@ class VSM(object):
 
         elif classname == 'Sample':
             for i, domain in enumerate(self.sample.domains):
-                self.measure_domain(domain)
+                # Check if the folder exists (already measured)
+                if not os.path.exists(domain.name):
+                    # Creating the folder
+                    domain.create_folder(domain.name)
+                    # Measuring the domain
+                    self.measure_domain(domain)
+                else:
+                    # Reading the folder's data
+                    self.logger.warn("Je lance la lecture, mais calcule quand même. À corriger")
+                    self.read_domain(domain)
 
             # Summing all the cycles' domains
             self.sample.sum_domains()
@@ -283,8 +297,47 @@ class VSM(object):
         # self.process_rotation(self, domain)
 
         # Freeing memory
-        self.logger.debug("Cleaning domain's data...")
-        self.clean(domain)
+        if self.low_memory:
+            self.logger.debug("Cleaning domain's data...")
+            self.clean(domain)
+
+    def read_domain(self, domain):
+        """
+            Read the domain's data from an existing folder.
+            If errors occurs during the reading, launch the measure.
+        """
+        # A little chat
+        self.logger.info(
+            "Reading folder: {}".format(domain.name)
+        )
+
+        # Create the sample's table to store data
+        domain.set_memory(self)
+
+        # Rotation of the VSM over phi
+        for i, phi in enumerate(self.phi):
+            # Setting the new angle
+            self.logger.info(
+                "\t\tphi = {}deg".format(np.degrees(phi))
+            )
+            self.angle = (i, phi)
+
+            # Calculate the energy table
+            #self.logger.info("Calculating energy...")
+            #domain.calculate_energy(self)
+
+            #self.logger.info("Starting analyze...")
+            #domain.analyse_energy(self)
+
+        # Calculating and plotting
+        #self.logger.info("Processing cycles...")
+        #self.process_cycles(domain)
+
+        # Reading data
+        for k, rot in enumerate(domain.rotations):      # loop over T
+            rot.import_data(domain.name)
+
+        # end
 
     def process_cycles(self, domain):
         """
