@@ -55,6 +55,9 @@ class VSM(object):
         # self.export_azimuthal = True
         # self.export_T = True
 
+        # Memory (set to False to keep energy data in memory)
+        self.low_memory = True
+
     def __str__(self):
         """
             Return the VSM status when using print(vsm)
@@ -283,8 +286,9 @@ class VSM(object):
         # self.process_rotation(self, domain)
 
         # Freeing memory
-        self.logger.debug("Cleaning domain's data...")
-        self.clean(domain)
+        if self.low_memory:
+            self.logger.debug("Cleaning domain's data...")
+            self.clean(domain)
 
     def process_cycles(self, domain):
         """
