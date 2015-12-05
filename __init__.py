@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # Version of the program
-__version__ = '1.2, 2015-09-15'
+__version__ = '1.3, 2015-12-05'
 
 ## General modules
 import shutil
 import time
-# Can't work without
+
+# Modules for physics
 import numpy as np
 from matplotlib import pylab as pl
 

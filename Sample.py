@@ -14,6 +14,7 @@
 
 """
 import os
+import sys
 import shutil
 import copy
 import numpy as np
@@ -283,13 +284,16 @@ Model : {}
             """
             if not os.path.exists(name):
                 os.makedirs(name)
-                self.logger.info("Creating folder for plotting '{}'.".format(name))
+                self.logger.info(
+                    "Creating folder for plotting '{}'.".format(name)
+                )
             else:
                 self.logger.info("Folder '{}' exists.".format(name))
-                # On demande quoi faire
-                yes_choice = np.array(['O', 'o', '', 'oui'])
+                # Asking what to do
+                yes_choice = np.array(['Y', 'y', 'oui'])
                 no_choice = np.array(['n', 'N', 'non'])
-                answer = input("Voulez-vous l'effacer? [Y/n]\n?")
+                self.logger.info("Are you sure to erase it?")
+                answer = input("[y/n]\n?")
 
                 if answer in yes_choice:
                     self.logger.info("Okayy... To the trash.")
@@ -302,7 +306,6 @@ Model : {}
                     self.logger.error("Not the right answer.")
                     self.logger.warn("I quit.")
                     sys.exit(0)
-
 
     return Domain()
 
@@ -325,10 +328,21 @@ def create_sample(domain, d):
             # Density: number for each domain
             self.density = density
 
-            self.logger.info("Creating {} domain folders, under '{}/'".format(self.domains.size, self.name))
+            self.logger.info(
+                "Creating {} domain folders, under '{}/'".format(
+                    self.domains.size,
+                    self.name
+                )
+            )
+
+            # Creating the main folder
+            self.create_folder(self.name)
+
+            # Populating the domains
             for i in np.arange(self.domains.size):
                 folder = "{}/domain{}".format(self.name, i)
-                self.create_folder(folder, verbose=False)
+                # no need to create the folder here
+                #self.create_folder(folder, verbose=False)
                 self.domains[i] = copy.copy(domain)
                 self.domains[i].name = folder
 
@@ -358,11 +372,12 @@ def create_sample(domain, d):
                 if verbose:
                     self.logger.info("Creating folder for plotting '{}'.".format(name))
             else:
-                self.logger.info("Folder '{}' exists.".format(name))
-                # On demande quoi faire
-                yes_choice = np.array(['O', 'o', '', 'oui'])
+                self.logger.warn("Folder '{}' already exists.".format(name))
+                # Asking what to do
+                yes_choice = np.array(['Y', 'y', 'oui'])
                 no_choice = np.array(['n', 'N', 'non'])
-                answer = input("Voulez-vous l'effacer? [Y/n]\n?")
+                self.logger.info("Are you sure to erase it?")
+                answer = input("[y/n]\n?")
 
                 if answer in yes_choice:
                     self.logger.info("Okayy... To the trash.")
@@ -373,7 +388,7 @@ def create_sample(domain, d):
                     self.logger.info("Promise, I keep it.")
                 else:
                     self.logger.error("Not the right answer.")
-                    self.logger.warn("I quit.")
+                    self.logger.warn("I quit... :(")
                     sys.exit(0)
 
         def sum_domains(self):
