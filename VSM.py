@@ -314,30 +314,9 @@ class VSM(object):
         # Create the sample's table to store data
         domain.set_memory(self)
 
-        # Rotation of the VSM over phi
-        for i, phi in enumerate(self.phi):
-            # Setting the new angle
-            self.logger.info(
-                "\t\tphi = {}deg".format(np.degrees(phi))
-            )
-            self.angle = (i, phi)
-
-            # Calculate the energy table
-            #self.logger.info("Calculating energy...")
-            #domain.calculate_energy(self)
-
-            #self.logger.info("Starting analyze...")
-            #domain.analyse_energy(self)
-
-        # Calculating and plotting
-        #self.logger.info("Processing cycles...")
-        #self.process_cycles(domain)
-
         # Reading data
         for k, rot in enumerate(domain.rotations):      # loop over T
             rot.import_data(domain.name)
-
-        # end
 
     def process_cycles(self, domain):
         """

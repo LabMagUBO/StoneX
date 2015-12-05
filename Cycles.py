@@ -416,7 +416,7 @@ class Cycle(object):
         )
 
         # Info
-        self.logger.info("Importing cycle data : {}".format(file))
+        self.logger.debug("Importing cycle data : {}".format(file))
 
         # Exporting
         self.data = np.loadtxt(file)
@@ -614,14 +614,16 @@ class Rotation(object):
             cycle.import_data(path)
 
         # Importing the azimuthal data
-        file = "{0}/azimuthal_{1}_T{2}.dat".format(
+        file = "{:.1f}/azimuthal_{:.1f}_T{:.1f}.dat".format(
+            # rounded to 1 dec.
             path,
             self.model,
-            round(self.T, 0)
+            # round(self.T, 0)       # old rounded number
+            self.T
         )
 
         # Verbose
-        self.logger.info("Importing azimuthal data : {}".format(file))
+        self.logger.debug("Importing azimuthal data : {}".format(file))
 
         # Import
         self.data = np.loadtxt(file)

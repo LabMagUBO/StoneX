@@ -290,9 +290,10 @@ Model : {}
             else:
                 self.logger.info("Folder '{}' exists.".format(name))
                 # Asking what to do
-                yes_choice = np.array(['O', 'o', '', 'oui'])
+                yes_choice = np.array(['Y', 'y', 'oui'])
                 no_choice = np.array(['n', 'N', 'non'])
-                answer = input("Voulez-vous l'effacer? [Y/n]\n?")
+                self.logger.info("Are you sure to erase it?")
+                answer = input("[y/n]\n?")
 
                 if answer in yes_choice:
                     self.logger.info("Okayy... To the trash.")
@@ -372,7 +373,7 @@ def create_sample(domain, d):
                     self.logger.info("Creating folder for plotting '{}'.".format(name))
             else:
                 self.logger.warn("Folder '{}' already exists.".format(name))
-                # On demande quoi faire
+                # Asking what to do
                 yes_choice = np.array(['Y', 'y', 'oui'])
                 no_choice = np.array(['n', 'N', 'non'])
                 self.logger.info("Are you sure to erase it?")
