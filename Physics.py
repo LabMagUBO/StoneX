@@ -55,19 +55,27 @@ def normale(x, m, s):
 def lognormale(x, m, s):
     """
         Lognormal distribution function.
-        x is the variable, m and s respectively the normal mean and standard
-        deviation
-        mu the mean, sigma the lognormal standard deviation
+        Parameters:
+            – x: variable
+            — m: mean of x distribution
+            — s: standard deviation of x distribution
+            — mu: mean of log(x) distribution
+            — sigma: standard deviation of log(x) distribution
 
-        Return the log expected value and standard deviation as well.
+        Returns:
+            lognormal distribution x, mean of log(x),
+            standard deviation of log(x)
     """
+    # Logging info
     if np.any(x == 0):
         logger = init_log(__name__, console_level='debug', file_level='info')
         logger.error("lognormale distribution: unable to divide by 0.")
 
-    mu = np.log(m) - np.log(1 + s / m**2) / 2
-    sigma = np.sqrt(np.log(1 + s / m**2))
+    # Parameters for log(x)
+    mu = np.log(m) - np.log(1 + s**2 / m**2) / 2
+    sigma = np.sqrt(np.log(1 + s**2 / m**2))
 
+    # Results
     return 1/(
         x * sigma * np.sqrt(2 * np.pi)
         ) * np.exp(-(np.log(x) - mu)**2 / 2 / sigma**2), mu, sigma
