@@ -1,7 +1,9 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
 """
     Cycle class.
+
+    Copyright (C) 2016  Jérôme Richy
 """
 ## Global module
 import numpy as np

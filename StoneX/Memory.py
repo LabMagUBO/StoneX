@@ -1,5 +1,11 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
+
+"""
+    Memory usage function.
+
+    Copyright (C) 2016  Jérôme Richy
+"""
 
 # Memory usage
 import resource
