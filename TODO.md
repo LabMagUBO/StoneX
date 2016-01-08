@@ -7,3 +7,6 @@
 * Manual for installation and use
 
 * Template files
+
+* Changelog
+
