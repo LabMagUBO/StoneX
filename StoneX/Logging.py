@@ -1,4 +1,4 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
 """
     Define logger object.
@@ -13,6 +13,8 @@
         logger.warn("Warning level")
         logger.error("Error level")
         logger.critical("Critical level")
+
+    Copyright (C) 2016  Jérôme Richy
 """
 
 # Logging module

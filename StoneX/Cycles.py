@@ -1,7 +1,9 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
 """
     Cycle class.
+
+    Copyright (C) 2016  Jérôme Richy
 """
 ## Global module
 import numpy as np
@@ -555,7 +557,7 @@ class Rotation(object):
             )
             trans.legend()
 
-            #On trace en exportant
+            # On trace en exportant
             self.logger.info("Plotting azimuthal graph : {}".format(file))
             pl.savefig(file, dpi=100)
 
@@ -601,9 +603,19 @@ class Rotation(object):
         self.logger.info("Exporting azimuthal data : {}".format(file))
 
         # Export
-        header = "Model = {0} \nT = {1}K \nMs = {2} A/m".format(self.model, self.T, self.Ms)
-        header += "phi(rad) \t\tHc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2(Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
-        np.savetxt(file, self.data, delimiter='\t', header=header, comments='# ')
+        header = "Model = {0} \nT = {1}K \nMs = {2} A/m".format(
+            self.model,
+            self.T,
+            self.Ms
+        )
+        header += "phi(rad) \t\tHc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\t\
+Mr2(Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
+        np.savetxt(
+            file, self.data,
+            delimiter='\t',
+            header=header,
+            comments='# '
+        )
 
     def import_data(self, path):
         """
@@ -614,7 +626,7 @@ class Rotation(object):
             cycle.import_data(path)
 
         # Importing the azimuthal data
-        file = "{:.1f}/azimuthal_{:.1f}_T{:.1f}.dat".format(
+        file = "{}/azimuthal_{}_T{:.1f}.dat".format(
             # rounded to 1 dec.
             path,
             self.model,

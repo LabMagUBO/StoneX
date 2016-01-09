@@ -1,4 +1,4 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
 """
     Models Class.
@@ -9,6 +9,8 @@
     Properties :
 
     Methods :
+
+    Copyright (C) 2016  Jérôme Richy
 """
 
 # General modules

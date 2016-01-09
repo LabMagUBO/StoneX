@@ -1,4 +1,4 @@
-#!/opt/local/bin/python-3.4.3
+#!/opt/local/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -19,6 +19,8 @@
         — self.measure() : measure all energy states and determine
             the magnetization cycle
         — self.process_cycles() : plot all the graphs
+
+    Copyright (C) 2016  Jérôme Richy
 """
 import sys
 import os
