@@ -1,53 +1,40 @@
-===========
 StoneX
 ===========
 
 Description
 -----------
-StoneX provides such and such and so and so. You might find
-it most useful for tasks involving <x> and also <y>. Typical usage
-often looks like this::
+StoneX provides thermally dependent magnetization reversal simulation.
+The model is extended from Meiklejohn & Bean [cite].
 
-    #!/usr/bin/env python
-
-    from towelstuff import location
-    from towelstuff import utils
-
-    if utils.has_towel():
-        print "Your towel is located:", location.where_is_my_towel()
-
-(Note the double-colon and 4-space indent formatting above.)
-
-Paragraphs are separated by blank lines. *Italics*, **bold**,
-and ``monospace`` look like this.
 
 
 Citations and licence
 ---------------------
 If you use StoneX in any work or publication, we kindly ask you to cite:
-""
+
+« Thermal simulation of magnetization reversals for size-distributed assemblies of core-shell exchange biased nanoparticles, J. Richy *et al.*, **Phys. Rev. B**, 2015 »
+
 
 StoneX is open-source software. You are free to modify and distribute the source code under the GPLv3 licence.
 
 
-A Section
-=========
-
-Lists look like this:
-
-* First
-
-* Second. Can be multiple lines
-  but must be indented properly.
-
-A Sub-Section
+Dependencies
 -------------
+The python script depends on numpy, scipy and matplotlib.
 
-Numbered lists look like you'd expect:
 
-1. hi there
+Installation
+------------
 
-2. must be going
 
-Urls are http://like.this and links can be
-written `like this <http://www.example.com/foo/bar>`_.
+
+How to use
+------------
+
+For examples, see in the wiki section.
+
+
+Contributing
+------------
+Contributions are gratefully accepted. To contribute code, fork our repo on github and send a pull request.
+

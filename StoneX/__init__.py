@@ -60,7 +60,7 @@ logger = first_init_log(
     __name__,
     console_level='debug',
     file_level='debug',
-    mode='w'
+    mode='a'
 )
 logger.info(
     "Program version {}, {}\n{}".format(
