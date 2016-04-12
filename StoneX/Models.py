@@ -180,11 +180,15 @@ class Meiklejohn_Bean(AntiFerro, Stoner_Wohlfarth):
 
         self.S = (200e-9)**2
         self.J_ex = 11e-3 * 1e-7 * 1e4       # J/m**2
+        self.J_bq = 0
 
     # Redefining only the energy
     def energy(self):
         exchange = lambda th: - self.J_ex * self.S * np.cos(th - self.gamma_af)
-        return lambda phi, H, th: Ferro.energy(self)(phi, H, th) + exchange(th)
+        biquadratic = lambda th: \
+            - self.J_bq * self.S * np.cos(th - self.gamma_af)**2
+        return lambda phi, H, th: \
+            Ferro.energy(self)(phi, H, th) + exchange(th) + biquadratic(th)
 
 
 class Garcia_Otero(Meiklejohn_Bean):
@@ -401,10 +405,13 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
     # Redefining the energy function
     def energy(self):
         exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
+        biquadratic = lambda alph, th: \
+            - self.J_bq * self.S * np.cos(th - alph)**2
 
         return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) \
             + AntiFerro_Rotatable.energy(self)(alph) \
-            + exchange(alph, th)
+            + exchange(alph, th) \
+            + biquadratic(alph, th)
 
     # Redefining calculate_energy from Stoner_Wolhfarth, adding the alpha
     # degree of freedom.
@@ -935,7 +942,13 @@ class Double_MacroSpin(AntiFerro_Spin, Rotatable_AF):
     # Redefining the energy
     def energy(self):
         exchange = lambda alph, th: - self.J_ex * self.S * np.cos(th - alph)
-        return lambda phi, H, alph, th: Ferro.energy(self)(phi, H, th) + AntiFerro_Spin.energy(self)(phi, H, alph) + exchange(alph, th)
+        biquadratic = lambda alph, th: \
+            - self.J_bq * self.S * np.cos(th - alph)**2
+        return lambda phi, H, alph, th: \
+            Ferro.energy(self)(phi, H, th) \
+            + AntiFerro_Spin.energy(self)(phi, H, alph) \
+            + exchange(alph, th) \
+            + biquadratic(alph, th)
 
     # and the magnetization
     def calculate_magnetization(self, phi, phiIdx, HIdx, eqIdx):
