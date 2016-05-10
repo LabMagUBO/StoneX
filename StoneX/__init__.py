@@ -20,8 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = "1.4"
-__date__ = "2015-01-09"
+__version__ = "1.4.1"
+__date__ = "2016-05-10"
 __author__ = "Jérôme RICHY"
 __copyright__ = "Copyright 2016"
 __license__ = "GPL"
@@ -60,7 +60,7 @@ logger = first_init_log(
     __name__,
     console_level='debug',
     file_level='debug',
-    mode='w'
+    mode='a'
 )
 logger.info(
     "Program version {}, {}\n{}".format(

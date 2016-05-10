@@ -69,9 +69,9 @@ class Ferro(Domain_base):
         self.K_f = convert_field(2, 'si') * mu_0 * self.Ms / 2
         self.gamma_f = 0
 
-        # Biquadratic anisotropy
-        self.K_bq = 0
-        self.gamma_bq = 0
+        # Biaxial anisotropy
+        self.K_ba = 0
+        self.gamma_ba = 0
 
         # Isotropic energy
         self.K_iso = 0
@@ -88,8 +88,8 @@ Ferro :
     V_f = {:.3} m**3 = {:.3} nm**3
     K_f = {} J/m**3
     gamma_f = {} deg
-    K_bq = {} J/m**3
-    gamma_bq = {} deg
+    K_ba = {} J/m**3
+    gamma_ba = {} deg
     K_f V_f = {} J
     K_f V_f / (25k_B) = T_B = {} K
     Hc(0K) = 2K_f/(mu_0 M_f) = {} Oe
@@ -99,14 +99,13 @@ Ferro :
                             self.V_f * 1e27,
                             self.K_f,
                             np.degrees(self.gamma_f),
-                            self.K_bq,
-                            np.degrees(self.gamma_bq),
+                            self.K_ba,
+                            np.degrees(self.gamma_ba),
                             (self.K_f * self.V_f / 2),
                             self.K_f * self.V_f / ( np.log(tau_mes * f0) * k_B),
                             convert_field(2 * self.K_f / mu_0 / self.Ms, 'cgs')
                         )
         return txt
-
 
     @property
     def theta(self):
@@ -115,7 +114,8 @@ Ferro :
     @theta.setter
     def theta(self, val):
         """
-            theta setter. Need a tuple as argument with three variables : step, unit
+            theta setter. Need a tuple as argument with three variables :
+            step, unit
         """
         try:
             step, unit = val
@@ -137,12 +137,12 @@ Ferro :
             - mu_0 * H * self.V_f * self.Ms * np.cos(th + phi)
         uniaxial = lambda th: \
             self.K_f * self.V_f * np.sin(th - self.gamma_f)**2
-        biquadratic = lambda th: \
-            self.K_bq * self.V_f * np.sin(th - self.gamma_bq)**2 \
-            * np.cos(th - self.gamma_bq)**2
+        biaxial = lambda th: \
+            self.K_ba * self.V_f * np.sin(th - self.gamma_ba)**2 \
+            * np.cos(th - self.gamma_ba)**2
 
         return lambda phi, H, th: zeeman(phi, H, th) + \
-            uniaxial(th) + biquadratic(th) + isotropic(phi, th)
+            uniaxial(th) + biaxial(th) + isotropic(phi, th)
 
 
 class AntiFerro(Domain_base):
@@ -220,10 +220,10 @@ class AntiFerro_Rotatable(AntiFerro):
         uniaxial = lambda alph: \
             self.K_af * self.V_af * np.sin(alph - self.gamma_af)**2
 
-        biquadratic = lambda alph: \
-            self.Bq_af * self.V_af * np.sin(2*(alph - self.gamma_af))**2
+        # biaxial = lambda alph: \
+        #    self.Bq_af * self.V_af * np.sin(2*(alph - self.gamma_af))**2
 
-        return lambda alph: uniaxial(alph) + biquadratic(alph)
+        return lambda alph: uniaxial(alph)  # + biquadratic(alph)
 
 
 class AntiFerro_Spin(AntiFerro_Rotatable):
@@ -236,7 +236,7 @@ class AntiFerro_Spin(AntiFerro_Rotatable):
 
     def __str__(self):
         txt = super().__str__()
-        txt +="""
+        txt += """
     AF magnetization:
         M_af = {} A/m
         """.format(self.M_af)
