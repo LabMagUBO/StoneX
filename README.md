@@ -13,7 +13,7 @@ Citations and licence
 ---------------------
 If you use StoneX in any work or publication, we kindly ask you to cite our article:
 
-“Thermal simulation of magnetization reversals for size-distributed assemblies of core-shell exchange biased nanoparticles, J. Richy *et al.*, ArXiv e-prints, **1602**.07877, 2016”
+“[Thermal simulation of magnetization reversals for size-distributed assemblies of core-shell exchange biased nanoparticles](https://arxiv.org/abs/1602.07877), J. Richy *et al.*, ArXiv e-prints, **1602**.07877, 2016”
 
 
 StoneX is open-source software. You are free to modify and distribute the source code under the GPLv3 licence.

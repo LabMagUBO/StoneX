@@ -96,7 +96,7 @@ class Stoner_Wohlfarth(Ferro):
                 pl.show()
                 break
 
-        return eq
+        return int(eq)
 
     def calculate_magnetization(self, phi, HIdx, eqIdx):
         """
@@ -448,7 +448,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         nb = np.shape(E)
 
         # Path of equilibrium
-        N_eq = np.zeros((1, 2))
+        N_eq = np.zeros((1, 2), dtype=int)
         N_eq[0] = eq
 
         while not found:
@@ -465,11 +465,15 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             for i in np.arange(-1, 2) + N_eq[k-1][0]:
                 for j in np.arange(-1, 2) + N_eq[k-1][1]:
                     if i*j != 1:    #Not the center
-                        E.mask[i % nb[0], j % nb[1]] = False
+                        E.mask[int(i % nb[0]), int(j % nb[1])] = False
 
             # Append the minimal state to N_eq
             minIdx = E.argmin()
-            N_eq = np.append(N_eq, [[np.floor(minIdx / nb[1]), minIdx % nb[1]]], axis=0)
+            N_eq = np.append(
+                N_eq,
+                [[int(np.floor(minIdx / nb[1])), int(minIdx % nb[1])]],
+                axis=0
+            )
 
             # Comparing energy
             barrier = E[N_eq[k][0], N_eq[k][1]] - E[N_eq[k-1][0], N_eq[k-1][1]]
@@ -644,7 +648,10 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
         if False:
             dos = 'debugPlot/'
-            self.debugplot_landscape(mask_lab, name='{}oldmask_eqIdx{}_{}'.format(dos, eqIdx[0], eqIdx[1]))
+            self.debugplot_landscape(
+                mask_lab,
+                name='{}oldmask_eqIdx{}_{}'.format(dos, eqIdx[0], eqIdx[1])
+            )
 
         # Index where the actual equilibrium is
         zonEq_label = mask_lab[eqIdx[0], eqIdx[1]]
@@ -663,7 +670,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
         #self.logger.warn("{} {} {} {}".format(r1, r2, r0, r))
 
         # Successive try index
-        tryIdx = np.array([eqIdx])
+        tryIdx = np.array([eqIdx], dtype=int)
 
         # Trying loop (infinite, with a stop at 10000 tries)
         k = 0   # Loop number
@@ -762,7 +769,10 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
 
                 # Calculating the global minimun index
                 minIdx = np.ma.argmin(self.E[HIdx, :, :])
-                possibleIdx = np.array([int(minIdx / nb[1]), minIdx % nb[1]])
+                possibleIdx = np.array(
+                    [minIdx / nb[1], minIdx % nb[1]],
+                    dtype=int
+                )
 
                 # If only one zone including the two minima, ie old eq and
                 # new eq are in the same old zone
@@ -895,7 +905,7 @@ class Rotatable_AF(Franco_Conde, AntiFerro_Rotatable):
             eq = np.argmin(self.E[0, :, :])
             thIdx = eq % self.theta.size
             alphIdx = np.floor(eq / self.theta.size)
-            eq = np.array([alphIdx, thIdx])
+            eq = np.array([alphIdx, thIdx], dtype=int)
 
             # Creating a cycle
             cycle = Cycle(vsm.H, 5)
