@@ -593,17 +593,18 @@ class Rotation(object):
             cycle.export(path)
 
         # Exporting the azimuthal data
-        file = "{0}/azimuthal_{1}_T{2}.dat".format(
+        file = "{}/azimuthal_{}_T{}.dat".format(
             path,
             self.model,
-            round(self.T, 0)
+            #round(self.T, 0)
+            self.T
         )
 
         # Verbose
         self.logger.info("Exporting azimuthal data : {}".format(file))
 
         # Export
-        header = "Model = {0} \nT = {1}K \nMs = {2} A/m".format(
+        header = "Model = {0} \nT = {1}K \nMs = {2} A/m\n".format(
             self.model,
             self.T,
             self.Ms
@@ -764,5 +765,5 @@ class Tevol(object):
 
             # Exporting
             header = "Model = {0} \nphi = {1} deg\n".format(self.model, np.degrees(phi))
-            header +="Hc (A/m) \t\tHe (A/m) \t\tMr1 (Am**2) \t\tMr2 (Am**2) \t\tMt1 (Am**2) \t\tMt2 (Am**2)\n"
+            header +="T (K) \t\t\tHc (A/m) \t\t\tHe (A/m) \t\t\tMr1 (Am**2) \t\t\tMr2 (Am**2) \t\t\tMt1 (Am**2) \t\t\tMt2 (Am**2)\n"
             np.savetxt(file, tab, delimiter='\t', header=header, comments='# ')

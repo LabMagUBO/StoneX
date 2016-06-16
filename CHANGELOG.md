@@ -1,5 +1,13 @@
 # Change Log
 
+## [1.5](https://github.com/LabMagUBO/StoneX)
+**Implemented enhancements:**
+
+**Closed issues:**
+
+**Fixed bugs:**
+- Deprecated non-integer index in Numpy arrays.
+
 ## [1.4](https://github.com/skywinder/github-changelog-generator/tree/1.10.1) (2016-01-06)
 [Full Changelog](https://github.com/skywinder/github-changelog-generator/compare/1.10.0...1.10.1)
 
