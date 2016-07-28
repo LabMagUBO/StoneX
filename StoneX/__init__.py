@@ -20,13 +20,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = "1.4.2"
-__date__ = "2016-06-16"
+__version__ = "1.4.3"
+__date__ = "2016-07-28"
 __author__ = "Jérôme RICHY"
 __copyright__ = "Copyright 2016"
 __license__ = "GPL"
 __maintainer__ = "Jérôme RICHY"
-__email__ = "jerome.richy@univ-brest.fr"
+__email__ = "jerome.richy@mines-nancy.org"
 __status__ = "Development"
 
 
